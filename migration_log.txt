@@ -1,0 +1,41 @@
+SISALv3 -> SISALv3.1 migration log
+Run: 2026-08-20
+
+Row counts:
+  site: 365
+  notes: 248
+  entity: 902
+  composite_link_entity: 50
+  reference: 501
+  entity_link_reference: 1056
+  dating: 13689
+  dating_lamina: 35972
+  sample: 448573
+  original_chronology: 439092
+  sisal_chronology: 319684
+  gap: 48
+  hiatus: 430
+  d13C: 286633
+  d18O: 447170
+  Sr_Ca: 23962
+  Mg_Ca: 26485
+  Ba_Ca: 15143
+  U_Ca: 11047
+  P_Ca: 11464
+  Sr_isotopes: 164
+  database_release: 1
+  code_artifact: 0
+  person: 119
+  entity_person: 1022
+  release_person: 0
+
+Person records created: 119
+Entity-person link rows: 1022
+Foreign key violations: 0
+
+Near-duplicate name pairs flagged for manual review (similarity >= 0.90, NOT auto-merged):
+  0.97  'Monika Markowska'  <->  'Monika Markhowska'
+  0.952  'Ana Moreno'  <->  'Anna Moreno'
+  0.941  'Syed Masood Ahmed'  <->  'Syed Masood Ahmad'
+  0.929  'Andrea Columbu'  <->  'Andrea Columbo'
+  0.909  'Zoltán Kern'  <->  'Zoltan Kern'

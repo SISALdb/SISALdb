@@ -1,0 +1,9 @@
+# Compiled database — regenerate locally with scripts/migrate_v3_to_v3.1.py
+# (114 MB, over GitHub's 100 MB push limit without Git LFS — see README)
+*.db
+*.sqlite
+*.sqlite3
+
+output/
+
+.DS_Store

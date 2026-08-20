@@ -1,0 +1,672 @@
+// SISALv3 database schema — DBML
+// Generated from sisalv3.sql (mysqldump, InnoDB, utf8mb4) in this same folder.
+// Paste directly into https://dbdiagram.io to render the ER diagram.
+// 21 tables. FK relationships expressed inline via [ref: > table.column].
+
+//// ---------- Enums (deduplicated across identical column definitions) ----------
+
+Enum yes_no_enum {
+  "yes"
+  "no"
+}
+
+Enum yes_no_unknown_enum {
+  "yes"
+  "no"
+  "unknown"
+}
+
+Enum yes_no_other_unknown_enum {
+  "yes"
+  "no"
+  "other (see notes)"
+  "unknown"
+}
+
+Enum date_type_enum {
+  "C14"
+  "MC-ICP-MS U/Th"
+  "ICP-MS U/Th Other"
+  "Alpha U/Th"
+  "TIMS"
+  "U/Th unspecified"
+  "Cross-dating"
+  "Multiple methods"
+  "Event; hiatus"
+  "Event; actively forming"
+  "Event; start of laminations"
+  "Event; end of laminations"
+  "unknown"
+  "other (see notes)"
+}
+
+Enum material_dated_enum {
+  "calcite"
+  "aragonite"
+  "organic"
+  "mixed (see notes)"
+  "other (see notes)"
+  "unknown"
+}
+
+Enum calib_used_enum {
+  "INTCAL13 NH"
+  "INTCAL13 SH"
+  "INTCAL13 marine"
+  "INTCAL09"
+  "INTCAL09 marine"
+  "INTCAL04 NH"
+  "INTCAL04 SH"
+  "INTCAL98"
+  "FAIRBANKS09"
+  "not calibrated"
+  "unknown"
+  "other (see notes)"
+}
+
+Enum decay_constant_enum {
+  "Cheng et al. 2000"
+  "Cheng et al. 2013"
+  "Edwards et al. 1987"
+  "Ivanovich & Harmon 1992"
+  "other (see notes)"
+  "unknown"
+}
+
+Enum entity_status_enum {
+  "current"
+  "superseded"
+  "current partially modified"
+}
+
+Enum depth_ref_enum {
+  "from top"
+  "from base"
+  "not applicable"
+}
+
+Enum geology_enum {
+  "limestone"
+  "dolomite"
+  "marble"
+  "dolomite limestone"
+  "marly limestone"
+  "calcarenite"
+  "mixed (see notes)"
+  "other (see notes)"
+  "unknown"
+}
+
+Enum rock_age_enum {
+  "Holocene"
+  "Pleistocene"
+  "Pliocene"
+  "Miocene"
+  "Oligocene"
+  "Eocene"
+  "Palaeocene"
+  "Cretaceous"
+  "Jurassic"
+  "Triassic"
+  "Permian"
+  "Carboniferous"
+  "Devonian"
+  "Silurian"
+  "Ordovician"
+  "Cambrian"
+  "Precambrian"
+  "mixed (see notes)"
+  "other (see notes)"
+  "unknown"
+}
+
+Enum wokam_enum {
+  "continuous carbonate"
+  "discontinuous carbonate"
+  "continuous evaporite"
+  "discontinuous evaporite"
+  "mixed carbonate and evaporite"
+}
+
+Enum vegetation_type_enum {
+  "evergreen"
+  "deciduous"
+  "shrubland"
+  "grassland"
+  "sparse"
+  "barren"
+  "trees and grass"
+  "trees and shrubs"
+  "moorland"
+  "mixed (see notes)"
+  "other (see notes)"
+  "unknown"
+}
+
+Enum land_use_enum {
+  "water body"
+  "wetland"
+  "forest"
+  "farmland"
+  "pasture"
+  "concrete and built up"
+  "limited or no use"
+  "mixed (see notes)"
+  "other (see notes)"
+  "unknown"
+}
+
+Enum copernicus_lcc_enum {
+  "unknown"
+  "shrubs"
+  "herbaceous vegetation"
+  "cultivated and managed vegetation / agriculture"
+  "urban / built up"
+  "bare / sparse vegetation"
+  "snow and ice"
+  "permanent water bodies"
+  "herbaceous wetland"
+  "moss and lichen"
+  "closed forest, evergreen needle leaf"
+  "closed forest, evergreen broad leaf"
+  "closed forest, deciduous needle leaf"
+  "closed forest, deciduous broad leaf"
+  "closed forest, mixed"
+  "closed forest, other"
+  "open forest, evergreen needle leaf"
+  "open forest, evergreen broad leaf"
+  "open forest, deciduous needle leaf"
+  "open forest, deciduous broad leaf"
+  "open forest, mixed"
+  "open forest, other"
+  "ocean"
+}
+
+Enum cover_type_enum {
+  "thick"
+  "thin"
+  "patchy"
+  "barren"
+  "mixed (see notes)"
+  "other (see notes)"
+  "unknown"
+}
+
+Enum speleothem_type_enum {
+  "stalagmite"
+  "composite"
+  "stalactite"
+  "flowstone"
+  "mixed (see notes)"
+  "other (see notes)"
+  "unknown"
+}
+
+Enum iso_std_enum {
+  "PDB"
+  "Vienna-PDB"
+  "unknown"
+}
+
+Enum proxy_method_enum {
+  "solution ICP-MS"
+  "solution OES-MS"
+  "solution ICP-AES"
+  "synchroton XRF"
+  "micro XRF"
+  "micro XRF (ITRAX)"
+  "LA-ICP-MS"
+  "LA-ICP-AES"
+  "SIMS"
+  "Electron Microprobe (EPMA)"
+  "TIMS"
+  "other (see notes)"
+  "unknown"
+}
+
+Enum proxy_std_enum {
+  "NIST SRM 610"
+  "NIST SRM 612"
+  "NIST SRM 614"
+  "CaCO3 (NIST SRM 915a)"
+  "SrCO3 (NIST SRM 987)"
+  "MACS-1"
+  "MACS-3"
+  "standard stock solutions of known concentrations"
+  "multi-element standards pre-calibrated by Merck etc."
+  "Japanese coral standard JCP-1 doped with single element standards of known concentrations"
+  "metal standards"
+  "other (see notes)"
+  "unknown"
+}
+
+Enum proxy_downsampled_enum {
+  "No-not applicable"
+  "No-aliquots of same powder used for stable isotope and trace element measurements"
+  "No-but different powders used for stable isotope and trace element measurements"
+  "Yes-author downsampled"
+  "Yes-SISAL downsampled"
+  "other (see notes)"
+  "unknown"
+}
+
+Enum proxy_downsampling_method_enum {
+  "running average/mean"
+  "linear interpolation"
+  "NESTool - kernel based downsampling"
+  "IgorPro - linear smoothing splines"
+  "IgorPro - interpolation"
+  "Binned average"
+  "Savitzky-Golay filter"
+  "Gaussian kernel"
+  "Loess"
+  "Lowess"
+  "MATLAB - interpolation"
+  "other (see notes)"
+  "unknown"
+}
+
+Enum sample_mineralogy_enum {
+  "calcite"
+  "secondary calcite"
+  "aragonite"
+  "vaterite"
+  "organic"
+  "mixed (see notes)"
+  "other (see notes)"
+  "unknown"
+}
+
+Enum arag_corr_enum {
+  "yes"
+  "no"
+  "not applicable"
+  "unknown"
+}
+
+Enum age_model_type_enum {
+  "linear"
+  "linear between dates"
+  "polynomial fit"
+  "polynomial fit omitting outliers"
+  "Bayesian"
+  "Bayesian Bacon"
+  "Bayesian Bchron"
+  "StalAge"
+  "StalAge and other"
+  "Clam"
+  "COPRA"
+  "OxCal"
+  "mixed (see notes)"
+  "other (see notes)"
+  "unknown"
+}
+
+Enum ann_lam_check_enum {
+  "14C peak"
+  "14C slope"
+  "U/Th cycle"
+  "trace element cycle"
+  "assumed"
+  "not applicable"
+  "other (see notes)"
+  "unknown"
+}
+
+Enum dep_rate_check_enum {
+  "yes"
+  "no"
+  "assumed"
+  "not applicable"
+  "unknown"
+}
+
+Enum gap_flag_enum {
+  "G"
+}
+
+Enum hiatus_flag_enum {
+  "H"
+}
+
+//// ---------- Core tables ----------
+
+Table site {
+  site_id int [pk, increment]
+  site_name varchar(200)
+  latitude "decimal(6,4)"
+  longitude "decimal(7,4)"
+  elevation "decimal(10,1)"
+  monitoring yes_no_unknown_enum
+}
+
+Table notes {
+  site_id int [pk, ref: - site.site_id]
+  notes varchar(8000) [not null]
+}
+
+Table entity {
+  site_id int [ref: > site.site_id]
+  entity_id int [pk, increment]
+  entity_name varchar(255)
+  entity_status entity_status_enum
+  corresponding_current varchar(255)
+  persist_id varchar(30) [not null, default: 'unset']
+  depth_ref depth_ref_enum
+  geology geology_enum
+  rock_age rock_age_enum
+  wokam wokam_enum
+  vegetation_type vegetation_type_enum
+  land_use land_use_enum
+  copernicus_lcc copernicus_lcc_enum
+  cover_type cover_type_enum
+  cover_thickness double
+  host_rock_trace_elements yes_no_other_unknown_enum
+  drip_water_trace_elements yes_no_other_unknown_enum
+  distance_entrance double
+  speleothem_type speleothem_type_enum
+  drip_type varchar(255)
+  drip_height double
+  d13C yes_no_unknown_enum
+  d18O yes_no_unknown_enum
+  iso_std iso_std_enum
+  d18O_water_equilibrium yes_no_other_unknown_enum
+  d18O_dripwater_carbonate_difference double
+  organics yes_no_other_unknown_enum
+  fluid_inclusions yes_no_other_unknown_enum
+  mineralogy_petrology_fabric yes_no_other_unknown_enum
+  clumped_isotopes yes_no_other_unknown_enum
+  noble_gas_temperatures yes_no_other_unknown_enum
+  C14 yes_no_other_unknown_enum
+  ODL yes_no_other_unknown_enum
+  Sr_Ca yes_no_other_unknown_enum
+  Sr_Ca_method proxy_method_enum
+  Sr_Ca_std proxy_std_enum
+  Sr_Ca_downsampled proxy_downsampled_enum
+  Sr_Ca_downsampling_method proxy_downsampling_method_enum
+  Mg_Ca yes_no_other_unknown_enum
+  Mg_Ca_method proxy_method_enum
+  Mg_Ca_std proxy_std_enum
+  Mg_Ca_downsampled proxy_downsampled_enum
+  Mg_Ca_downsampling_method proxy_downsampling_method_enum
+  Ba_Ca yes_no_other_unknown_enum
+  Ba_Ca_method proxy_method_enum
+  Ba_Ca_std proxy_std_enum
+  Ba_Ca_downsampled proxy_downsampled_enum
+  Ba_Ca_downsampling_method proxy_downsampling_method_enum
+  U_Ca yes_no_other_unknown_enum
+  U_Ca_method proxy_method_enum
+  U_Ca_std proxy_std_enum
+  U_Ca_downsampled proxy_downsampled_enum
+  U_Ca_downsampling_method proxy_downsampling_method_enum
+  P_Ca yes_no_other_unknown_enum
+  P_Ca_method proxy_method_enum
+  P_Ca_std proxy_std_enum
+  P_Ca_downsampled proxy_downsampled_enum
+  P_Ca_downsampling_method proxy_downsampling_method_enum
+  Sr_isotopes yes_no_other_unknown_enum
+  Sr_isotopes_method proxy_method_enum
+  Sr_isotopes_std proxy_std_enum
+  trace_elements_datafile yes_no_enum
+  trace_elements_metadatafile yes_no_enum
+  cave_map yes_no_enum
+  entity_scan yes_no_enum
+  added_in_release_id int [ref: > database_release.release_id] // DRAFT v3.1: immutable, set once — drives release_person(role=data_contributor) derivation and release-citation stability
+  last_modified_release_id int [ref: > database_release.release_id] // DRAFT v3.1: mutable, updated on every change — for curation use (what's stale, what needs review), not for citation derivation
+  data_DOI_URL varchar(255)
+}
+
+Table composite_link_entity {
+  composite_entity_id int [ref: > entity.entity_id]
+  single_entity_id int [ref: > entity.entity_id]
+
+  Note: 'Links a composite entity to the individual entities it is built from.'
+}
+
+Table reference {
+  ref_id int [pk, increment]
+  citation varchar(2555)
+  publication_DOI varchar(255)
+}
+
+Table entity_link_reference {
+  entity_id int [ref: > entity.entity_id]
+  ref_id int [ref: > reference.ref_id]
+}
+
+Table dating {
+  dating_id int [pk, increment]
+  entity_id int [ref: > entity.entity_id]
+  date_type date_type_enum
+  depth_dating double
+  dating_thickness double
+  lab_num varchar(255)
+  material_dated material_dated_enum
+  min_weight double
+  max_weight double
+  uncorr_age double
+  uncorr_age_uncert_pos double
+  uncorr_age_uncert_neg double
+  "14C_correction" double
+  calib_used calib_used_enum
+  date_used yes_no_unknown_enum
+  "238U_content" double
+  "238U_uncertainty" double
+  "232Th_content" double
+  "232Th_uncertainty" double
+  "230Th_content" double
+  "230Th_uncertainty" double
+  "230Th_232Th_ratio" double
+  "230Th_232Th_ratio_uncertainty" double
+  "230Th_238U_activity" double
+  "230Th_238U_activity_uncertainty" double
+  "234U_238U_activity" double
+  "234U_238U_activity_uncertainty" double
+  ini_230Th_232Th_ratio double
+  ini_230Th_232Th_ratio_uncertainty double
+  decay_constant decay_constant_enum
+  corr_age double
+  corr_age_uncert_pos double
+  corr_age_uncert_neg double
+  date_used_lin_interp yes_no_enum
+  date_used_lin_reg yes_no_enum
+  date_used_Bchron yes_no_enum
+  date_used_Bacon yes_no_enum
+  date_used_OxCal yes_no_enum
+  date_used_copRa yes_no_enum
+  date_used_StalAge yes_no_enum
+}
+
+Table dating_lamina {
+  dating_lamina_id int [pk, increment]
+  entity_id int [ref: > entity.entity_id]
+  depth_lam double
+  lam_thickness double
+  lam_age double [not null]
+  lam_age_uncert_pos double
+  lam_age_uncert_neg double
+}
+
+Table sample {
+  entity_id int [ref: > entity.entity_id]
+  sample_id int [pk, increment]
+  sample_thickness double
+  depth_sample double
+  mineralogy sample_mineralogy_enum
+  arag_corr arag_corr_enum
+}
+
+Table original_chronology {
+  sample_id int [pk, ref: - sample.sample_id]
+  interp_age double
+  interp_age_uncert_pos double
+  interp_age_uncert_neg double
+  age_model_type age_model_type_enum
+  ann_lam_check ann_lam_check_enum
+  dep_rate_check dep_rate_check_enum
+}
+
+Table sisal_chronology {
+  sample_id int [pk, ref: - sample.sample_id]
+  lin_interp_age double
+  lin_interp_age_uncert_pos double
+  lin_interp_age_uncert_neg double
+  lin_reg_age double
+  lin_reg_age_uncert_pos double
+  lin_reg_age_uncert_neg double
+  Bchron_age double
+  Bchron_age_uncert_pos double
+  Bchron_age_uncert_neg double
+  Bacon_age double
+  Bacon_age_uncert_pos double
+  Bacon_age_uncert_neg double
+  OxCal_age double
+  OxCal_age_uncert_pos double
+  OxCal_age_uncert_neg double
+  copRa_age double
+  copRa_age_uncert_pos double
+  copRa_age_uncert_neg double
+  StalAge_age double
+  StalAge_age_uncert_pos double
+  StalAge_age_uncert_neg double
+}
+
+Table gap {
+  sample_id int [pk, ref: - sample.sample_id]
+  gap gap_flag_enum
+}
+
+Table hiatus {
+  sample_id int [pk, ref: - sample.sample_id]
+  hiatus hiatus_flag_enum
+}
+
+//// ---------- Proxy measurement tables (one row per sample, 1:1 with sample) ----------
+
+Table d13C {
+  sample_id int [pk, ref: - sample.sample_id]
+  d13C_measurement double
+  d13C_precision double
+}
+
+Table d18O {
+  sample_id int [pk, ref: - sample.sample_id]
+  d18O_measurement double
+  d18O_precision double
+}
+
+Table Sr_Ca {
+  sample_id int [pk, ref: - sample.sample_id]
+  Sr_Ca_measurement double
+  Sr_Ca_precision double
+}
+
+Table Mg_Ca {
+  sample_id int [pk, ref: - sample.sample_id]
+  Mg_Ca_measurement double
+  Mg_Ca_precision double
+}
+
+Table Ba_Ca {
+  sample_id int [pk, ref: - sample.sample_id]
+  Ba_Ca_measurement double
+  Ba_Ca_precision double
+}
+
+Table U_Ca {
+  sample_id int [pk, ref: - sample.sample_id]
+  U_Ca_measurement double
+  U_Ca_precision double
+}
+
+Table P_Ca {
+  sample_id int [pk, ref: - sample.sample_id]
+  P_Ca_measurement double
+  P_Ca_precision double
+}
+
+Table Sr_isotopes {
+  sample_id int [pk, ref: - sample.sample_id]
+  Sr_isotopes_measurement double
+  Sr_isotopes_precision double
+}
+
+//// ---------- DRAFT v3.1 additions: release-management/provenance framework ----------
+//// Not yet implemented in the live database. See release-management framework.md
+//// in the Obsidian vault (Notes/02_RESEARCH/05_SISAL/) for full discussion and open questions
+//// (entity_person migration from free-text `contact`, code_artifact reuse across releases,
+//// person.neotoma_contributor_id pending discussion with Socorro).
+//// `entity.added_in_release_id` above references `database_release` here.
+
+Enum release_type_enum {
+  official
+  beta
+}
+
+Enum role_enum {
+  release_steward
+  data_curator
+  workflow_developer
+  project_lead
+  data_contributor
+}
+
+Enum artifact_type_enum {
+  agemodel
+  downsampling
+}
+
+Table code_artifact {
+  artifact_id int [pk, increment]
+  artifact_type artifact_type_enum
+  doi varchar
+  version_label varchar
+  description text // e.g. 'covers sisal_chronology pipeline (Bchron/Bacon/OxCal/copRa/StalAge), not per-entity original_chronology'
+
+  Note: 'One row per distinct code version. Reused across multiple database_release rows when the same pipeline version produced several releases — avoids repeating the same DOI on every row.'
+}
+
+Table database_release {
+  release_id int [pk, increment]
+  database_generation varchar
+  release_version varchar
+  release_date date
+  release_type release_type_enum
+  project varchar
+  qc_version varchar
+  sqlgen_version varchar
+  agemodel_artifact_id int [ref: > code_artifact.artifact_id]
+  downsampling_artifact_id int [ref: > code_artifact.artifact_id]
+  release_doi text
+  previous_release varchar
+  release_notes text
+}
+
+Table person {
+  person_id int [pk, increment]
+  name varchar
+  orcid varchar
+}
+
+Table entity_person {
+  entity_id int [ref: > entity.entity_id]
+  person_id int [ref: > person.person_id]
+
+  indexes {
+    (entity_id, person_id) [pk]
+  }
+
+  Note: 'Contact person(s) for this entity/record — replaces free-text `contact`. Migration note: of 902 published-v3 entities, only 155 distinct contact strings exist, but 116 of those (75%) list more than one person (comma/semicolon/slash-separated) — this is why a junction table, not a bare FK on entity. Semantically always "data_contributor"; rolls up into release_person via entity.added_in_release_id rather than being duplicated there manually.'
+}
+
+Table release_person {
+  release_id int [ref: > database_release.release_id]
+  person_id int [ref: > person.person_id]
+  role role_enum
+
+  indexes {
+    (release_id, person_id, role) [pk]
+  }
+
+  Note: 'Multiple people can share the same role for one release — e.g. 5 rows with role=release_steward and 5 different person_id values. Uniqueness is on the (release_id, person_id, role) triple, not on role alone. role=data_contributor rows are derived (SELECT DISTINCT person_id FROM entity_person JOIN entity ON ... WHERE entity.added_in_release_id = X), not manually inserted here.'
+}
