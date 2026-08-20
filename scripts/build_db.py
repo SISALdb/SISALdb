@@ -128,6 +128,7 @@ CREATE TABLE database_release (
   release_date TEXT,
   release_type TEXT CHECK ({CK('release_type', RELEASE_TYPE)}),
   project TEXT,
+  is_subset TEXT CHECK ({CK('is_subset', YES_NO)}),
   qc_version TEXT,
   sqlgen_version TEXT,
   agemodel_artifact_id INTEGER REFERENCES code_artifact(artifact_id) ON DELETE SET NULL ON UPDATE CASCADE,

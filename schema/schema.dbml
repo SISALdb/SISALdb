@@ -633,6 +633,7 @@ Table database_release {
   release_date date
   release_type release_type_enum
   project varchar
+  is_subset yes_no_enum // only meaningful for beta releases — is this a thematic/project subset of the full database, or a full snapshot? NULL for official releases.
   qc_version varchar
   sqlgen_version varchar
   agemodel_artifact_id int [ref: > code_artifact.artifact_id]
