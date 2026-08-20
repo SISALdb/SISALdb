@@ -49,6 +49,7 @@ See [`migration_log.txt`](migration_log.txt) for verification output from the or
 | `csv/` | The full SISALv3.1 data, one CSV per table — diff-friendly source of truth |
 | `schema/schema.dbml` | Full schema, published SISALv3 tables + draft v3.1 additions |
 | `scripts/build_db.py` | Builds the SQLite database from `csv/` |
+| `PROJECTS.md` | Reserved primary-key ID ranges per project branch, to keep branch merges collision-free |
 | `CHANGELOG.md` | Release history, one entry per `database_release` |
 | `migration_log.txt` | Verification output from the original v3 → v3.1 migration |
 
