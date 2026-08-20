@@ -64,9 +64,10 @@ Migrated 2026-08-20. This is a **local dev artifact**, not yet a `database_relea
 
 | File | Contents |
 |---|---|
+| `csv/` | The full SISALv3.1 data, one CSV per table — diff-friendly source of truth |
 | `schema/schema.dbml` | Full schema (21 published tables + draft v3.1 additions), pasteable into [dbdiagram.io](https://dbdiagram.io) |
-| `scripts/migrate_v3_to_v3.1.py` | The script that produced this migration — run it against the published SISALv3 CSV export to regenerate `sisalv3.1.db` locally |
-| `migration_log.txt` | Row-count/verification output from the migration run |
+| `scripts/build_db.py` | Builds `sisalv3.1.db` from `csv/` |
+| `migration_log.txt` | Row-count/verification output from the original v3 → v3.1 migration |
 | `CHANGELOG.md` | This file |
 
 `sisalv3.1.db` itself (~114 MB) is **not** committed to this repo — see the README for why and how to build it.
