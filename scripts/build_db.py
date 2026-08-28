@@ -102,8 +102,9 @@ DEP_RATE_CHECK = ['yes', 'no', 'assumed', 'not applicable', 'unknown']
 GAP_FLAG = ['G']
 HIATUS_FLAG = ['H']
 RELEASE_TYPE = ['official', 'beta']
+PROJECT_TYPE = ['active', 'closed']
 ROLE = ['release_steward', 'data_curator', 'workflow_developer', 'project_lead', 'data_contributor']
-ARTIFACT_TYPE = ['agemodel', 'downsampling']
+ARTIFACT_TYPE = ['agemodel', 'downsampling', 'copernicus_lcc']
 
 
 def CK(col, values):
@@ -127,21 +128,29 @@ CREATE TABLE database_release (
   release_version TEXT,
   release_date TEXT,
   release_type TEXT CHECK ({CK('release_type', RELEASE_TYPE)}),
-  project TEXT,
-  is_subset TEXT CHECK ({CK('is_subset', YES_NO)}),
   qc_version TEXT,
   sqlgen_version TEXT,
   agemodel_artifact_id INTEGER REFERENCES code_artifact(artifact_id) ON DELETE SET NULL ON UPDATE CASCADE,
   downsampling_artifact_id INTEGER REFERENCES code_artifact(artifact_id) ON DELETE SET NULL ON UPDATE CASCADE,
+  lcc_artifact_id INTEGER REFERENCES code_artifact(artifact_id) ON DELETE SET NULL ON UPDATE CASCADE,
   release_doi TEXT,
-  previous_release TEXT,
+  previous_release INTEGER REFERENCES database_release(release_id) ON DELETE SET NULL ON UPDATE CASCADE,
   release_notes TEXT
+  -- OPEN ISSUE (flagged, not fixed here): no project_id FK to `projects` below.
 );
 
 CREATE TABLE person (
   person_id INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT NOT NULL,
   orcid TEXT
+);
+
+CREATE TABLE projects (
+  project_id INTEGER PRIMARY KEY AUTOINCREMENT,
+  project_name TEXT,
+  project_doi TEXT,
+  project_status TEXT CHECK ({CK('project_status', PROJECT_TYPE)}),
+  project_notes TEXT
 );
 
 CREATE TABLE site (
@@ -161,7 +170,7 @@ CREATE TABLE notes (
 
 CREATE TABLE entity (
   entity_id INTEGER PRIMARY KEY,
-  site_id INTEGER REFERENCES site(site_id) ON DELETE CASCADE ON UPDATE CASCADE,
+  site_id INTEGER NOT NULL REFERENCES site(site_id) ON DELETE CASCADE ON UPDATE CASCADE,
   entity_name TEXT,
   entity_status TEXT CHECK ({CK('entity_status', ENTITY_STATUS)}),
   corresponding_current TEXT,
@@ -233,7 +242,7 @@ CREATE INDEX idx_entity_site ON entity(site_id);
 CREATE INDEX idx_entity_added_release ON entity(added_in_release_id);
 CREATE INDEX idx_entity_modified_release ON entity(last_modified_release_id);
 
-CREATE TABLE entity_person (
+CREATE TABLE entity_link_person (
   entity_id INTEGER REFERENCES entity(entity_id) ON DELETE CASCADE ON UPDATE CASCADE,
   person_id INTEGER REFERENCES person(person_id) ON DELETE CASCADE ON UPDATE CASCADE,
   PRIMARY KEY (entity_id, person_id)
@@ -246,9 +255,22 @@ CREATE TABLE release_person (
   PRIMARY KEY (release_id, person_id, role)
 );
 
+CREATE TABLE project_person (
+  project_id INTEGER REFERENCES projects(project_id) ON DELETE CASCADE ON UPDATE CASCADE,
+  person_id INTEGER REFERENCES person(person_id) ON DELETE CASCADE ON UPDATE CASCADE,
+  role TEXT CHECK ({CK('role', ROLE)}),
+  PRIMARY KEY (project_id, person_id, role)
+);
+
+CREATE TABLE project_link_entity (
+  project_id INTEGER NOT NULL REFERENCES projects(project_id) ON DELETE CASCADE ON UPDATE CASCADE,
+  entity_id INTEGER NOT NULL REFERENCES entity(entity_id) ON DELETE CASCADE ON UPDATE CASCADE,
+  PRIMARY KEY (project_id, entity_id)
+);
+
 CREATE TABLE composite_link_entity (
-  composite_entity_id INTEGER REFERENCES entity(entity_id) ON DELETE CASCADE ON UPDATE CASCADE,
-  single_entity_id INTEGER REFERENCES entity(entity_id) ON DELETE CASCADE ON UPDATE CASCADE
+  composite_entity_id INTEGER NOT NULL REFERENCES entity(entity_id) ON DELETE CASCADE ON UPDATE CASCADE,
+  single_entity_id INTEGER NOT NULL REFERENCES entity(entity_id) ON DELETE CASCADE ON UPDATE CASCADE
 );
 CREATE INDEX idx_cle_composite ON composite_link_entity(composite_entity_id);
 CREATE INDEX idx_cle_single ON composite_link_entity(single_entity_id);
@@ -260,15 +282,15 @@ CREATE TABLE reference (
 );
 
 CREATE TABLE entity_link_reference (
-  entity_id INTEGER REFERENCES entity(entity_id) ON DELETE CASCADE ON UPDATE CASCADE,
-  ref_id INTEGER REFERENCES reference(ref_id) ON DELETE CASCADE ON UPDATE CASCADE
+  entity_id INTEGER NOT NULL REFERENCES entity(entity_id) ON DELETE CASCADE ON UPDATE CASCADE,
+  ref_id INTEGER NOT NULL REFERENCES reference(ref_id) ON DELETE CASCADE ON UPDATE CASCADE
 );
 CREATE INDEX idx_elr_entity ON entity_link_reference(entity_id);
 CREATE INDEX idx_elr_ref ON entity_link_reference(ref_id);
 
 CREATE TABLE dating (
   dating_id INTEGER PRIMARY KEY,
-  entity_id INTEGER REFERENCES entity(entity_id) ON DELETE CASCADE ON UPDATE CASCADE,
+  entity_id INTEGER NOT NULL REFERENCES entity(entity_id) ON DELETE CASCADE ON UPDATE CASCADE,
   date_type TEXT CHECK ({CK('date_type', DATE_TYPE)}),
   depth_dating REAL,
   dating_thickness REAL,
@@ -312,7 +334,7 @@ CREATE INDEX idx_dating_entity ON dating(entity_id);
 
 CREATE TABLE dating_lamina (
   dating_lamina_id INTEGER PRIMARY KEY,
-  entity_id INTEGER REFERENCES entity(entity_id) ON DELETE CASCADE ON UPDATE CASCADE,
+  entity_id INTEGER NOT NULL REFERENCES entity(entity_id) ON DELETE CASCADE ON UPDATE CASCADE,
   depth_lam REAL,
   lam_thickness REAL,
   lam_age REAL NOT NULL,
@@ -323,7 +345,7 @@ CREATE INDEX idx_dl_entity ON dating_lamina(entity_id);
 
 CREATE TABLE sample (
   sample_id INTEGER PRIMARY KEY,
-  entity_id INTEGER REFERENCES entity(entity_id) ON DELETE CASCADE ON UPDATE CASCADE,
+  entity_id INTEGER NOT NULL REFERENCES entity(entity_id) ON DELETE CASCADE ON UPDATE CASCADE,
   sample_thickness REAL,
   depth_sample REAL,
   mineralogy TEXT CHECK ({CK('mineralogy', SAMPLE_MINERALOGY)}),
@@ -403,9 +425,9 @@ print("Schema created: OK")
 # ---------------------------------------------------------------- generic CSV loader
 # Load order matters for FK enforcement: parents before children.
 LOAD_ORDER = [
-    'code_artifact', 'database_release', 'person', 'site', 'notes', 'entity',
-    'entity_person', 'release_person', 'composite_link_entity', 'reference',
-    'entity_link_reference', 'dating', 'dating_lamina', 'sample',
+    'code_artifact', 'database_release', 'person', 'projects', 'site', 'notes', 'entity',
+    'entity_link_person', 'release_person', 'project_person', 'project_link_entity',
+    'composite_link_entity', 'reference', 'entity_link_reference', 'dating', 'dating_lamina', 'sample',
     'original_chronology', 'sisal_chronology', 'gap', 'hiatus',
     'd13C', 'd18O', 'Sr_Ca', 'Mg_Ca', 'Ba_Ca', 'U_Ca', 'P_Ca', 'Sr_isotopes',
 ]
