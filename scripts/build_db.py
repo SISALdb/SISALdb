@@ -104,7 +104,7 @@ HIATUS_FLAG = ['H']
 RELEASE_TYPE = ['official', 'beta']
 PROJECT_TYPE = ['active', 'closed']
 ROLE = ['release_steward', 'data_curator', 'workflow_developer', 'project_lead', 'data_contributor']
-ARTIFACT_TYPE = ['agemodel', 'downsampling', 'copernicus_lcc']
+ARTIFACT_TYPE = ['agemodel', 'downsampling', 'lcc_product']
 
 
 def CK(col, values):
@@ -136,7 +136,8 @@ CREATE TABLE database_release (
   release_doi TEXT,
   previous_release INTEGER REFERENCES database_release(release_id) ON DELETE SET NULL ON UPDATE CASCADE,
   release_notes TEXT
-  -- OPEN ISSUE (flagged, not fixed here): no project_id FK to `projects` below.
+  -- No direct FK to `projects` — deliberate. Which project(s) a release belongs to
+  -- is derived via project_link_entity + entity.added_in_release_id, not stored.
 );
 
 CREATE TABLE person (

@@ -11,15 +11,19 @@
 //   already used by composite_link_entity/entity_link_reference.
 // - database_release.previous_release changed from varchar to a real self-referencing FK
 //   (int, ref: > database_release.release_id) — was a free-text label before.
-// - New code_artifact type `copernicus_lcc` (+ database_release.lcc_artifact_id) — a third
+// - New code_artifact type `lcc_product` (+ database_release.lcc_artifact_id) — a third
 //   reusable pipeline alongside agemodel/downsampling, for the entity.copernicus_lcc
-//   land-cover classification.
+//   land-cover classification. (Not to be confused with the pre-existing
+//   copernicus_lcc_enum used by entity.copernicus_lcc itself — different thing.)
 // - New `projects` table (+ project_person, project_link_entity, project_type_enum):
 //   project promoted from a plain varchar on database_release to a first-class entity,
 //   with its own DOI, status, linked entities, and linked people.
-// - database_release.project and .is_subset REMOVED (see feedback in release-management
-//   framework.md — database_release no longer links to `projects` at all now that project
-//   is its own table; flagged as likely needing a project_id FK back).
+// - database_release.project and .is_subset REMOVED. Deliberate: database_release no
+//   longer links to `projects` directly — which project(s) fed a release is derived via
+//   project_link_entity + entity.added_in_release_id, not stored redundantly. See
+//   release-management framework.md.
+// - role_enum renamed to contributor_role_enum (shared by release_person.role and
+//   project_person.role).
 
 //// ---------- Enums (deduplicated across identical column definitions) ----------
 
@@ -624,7 +628,7 @@ Enum project_type_enum {
   closed
 }
 
-Enum role_enum {
+Enum contributor_role_enum {
   release_steward
   data_curator
   workflow_developer
@@ -635,7 +639,7 @@ Enum role_enum {
 Enum artifact_type_enum {
   agemodel
   downsampling
-  copernicus_lcc
+  lcc_product
 }
 
 Table code_artifact {
@@ -663,10 +667,12 @@ Table database_release {
   previous_release int [ref: > database_release.release_id] // CHANGED: was varchar (free-text label), now a real self-referencing FK
   release_notes text
 
-  // OPEN ISSUE (flagged, not fixed here): no project_id FK to `projects` below.
-  // `project`/`is_subset` were removed from this table when `projects` became its
-  // own entity, but nothing replaced the link saying which project a beta release
-  // belongs to. See feedback in release-management framework.md.
+  // No direct FK to `projects` — deliberate. `project`/`is_subset` were removed
+  // when `projects` became its own entity; which project(s) a release belongs to
+  // is derived (SELECT DISTINCT project_id FROM project_link_entity JOIN entity
+  // ON entity.entity_id = project_link_entity.entity_id WHERE entity.added_in_release_id = X),
+  // not stored. This also handles official releases spanning multiple projects,
+  // which a single project_id FK couldn't.
 }
 
 Table person {
@@ -689,7 +695,7 @@ Table entity_link_person {
 Table release_person {
   release_id int [ref: > database_release.release_id]
   person_id int [ref: > person.person_id]
-  role role_enum
+  role contributor_role_enum
 
   indexes {
     (release_id, person_id, role) [pk]
@@ -709,7 +715,7 @@ Table projects {
 Table project_person {
   project_id int [ref: > projects.project_id]
   person_id int [ref: > person.person_id]
-  role role_enum
+  role contributor_role_enum
 
   indexes {
     (project_id, person_id, role) [pk]
