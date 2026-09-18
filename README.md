@@ -25,7 +25,7 @@ SISAL releases are identified as `SISALvX.Y — YYYY.MM Release`:
 
 Example: `SISALv3.1 — 2027.07 Release` = the v3.1 schema generation, dated snapshot July 2027.
 
-## Building the database
+## As a USER, start here: Building the database
 
 This repo is **self-contained** — the full SISALv3.1 data ships as one CSV per table in [`csv/`](csv/), so you don't need a separate SISALv3 export to build the database. CSVs are also what make this repo's changes actually diffable in git, unlike a binary `.db` file. The compiled `.db` itself isn't committed (114 MB, over GitHub's 100 MB push limit) — build it locally:
 
@@ -41,6 +41,20 @@ The script:
 No external dependencies — just the Python 3 standard library (`sqlite3`, `csv`).
 
 See [`migration_log.txt`](migration_log.txt) for verification output from the original v3 → v3.1 migration, and [`CHANGELOG.md`](CHANGELOG.md) for the full list of what changed and what's still open (near-duplicate contributor names flagged for manual review, ORCID enrichment pending, etc.).
+
+## As a NEOTOMA DATA STEWARD, start here: the Changelist
+
+As part of the periodic update, SISALdb produces a changelist output that has been verified to work with the Neotoma Databus. This output is created by using the here published SQL-query (provide the URL). 
+
+ 
+
+&nbsp;
+
+## As a SISAL DATA STEWARD, start here: DS_scripts
+
+In this folder all scripts needed for updating the database are gathered.
+
+
 
 ## Repo layout
 
