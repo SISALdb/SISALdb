@@ -1,110 +1,110 @@
 person_id,name,orcid
 1,Hai Cheng,
 2,Jonathan Baker,
-3,Xianfeng Wang,
-4,Inga Labuhn,
-5,Franziska Lechleitner,
-6,Ting Yong Li,
-7,Jun Hu,
+3,Xianfeng Wang,0000-0002-8614-5627
+4,Inga Labuhn,0000-0003-3755-5264
+5,Franziska Lechleitner,0000-0002-1697-0429
+6,Ting Yong Li,0000-0003-1236-3354
+7,Jun Hu,0000-0002-0458-5996
 8,Kerstin Braun,
-9,Tim Atkinson,
-10,Valdir Felipe Novello,
+9,Tim Atkinson,0000-0003-2743-4709
+10,Valdir Felipe Novello,0000-0002-0120-3745
 11,Carole Nehme,
-12,Nikita Kaushal,
-13,Andy Baker,
-14,Matthew Lachniet,
-15,Gina Moseley,
+12,Nikita Kaushal,0000-0002-2220-9046
+13,Andy Baker,0000-0002-1552-6166
+14,Matthew Lachniet,0000-0001-5250-0144
+15,Gina Moseley,0000-0002-5618-5759
 16,Stef Vansteenberge,
 17,Giselle Utida,
-18,Sakonvan Chawchai,
+18,Sakonvan Chawchai,0000-0003-0527-9381
 19,Nicolás M. Stríkis,
 20,Vitor Azevedo,
 21,James Apaéstegui,
 22,Barbara Wortham,
 23,Corinne Wong,
-25,Syed Masood Ahmad,
-26,Pauline Treble,
-27,Gabriella Koltai,
-28,Nick Scroxton,
-30,Cristina Veiga-Pires,
-31,Zoltán Kern,
-32,Yassine Ait Brahim,
-33,Martin Finné,
-34,Wuhui Duan,
-35,István G. Hatvani,
+25,Syed Masood Ahmad,0000-0002-4090-9660
+26,Pauline Treble,0000-0002-1969-8555
+27,Gabriella Koltai,0000-0001-6084-6890
+28,Nick Scroxton,0000-0003-2315-9199
+30,Cristina Veiga-Pires,0000-0002-9323-0723
+31,Zoltán Kern,0000-0003-4900-2587
+32,Yassine Ait Brahim,0000-0003-3098-7339
+33,Martin Finné,0000-0001-7433-268X
+34,Wuhui Duan,0000-0003-3078-040X
+35,István G. Hatvani,0000-0002-9262-7315
 36,Philip Hopley,
 37,David Psomiadis,
-38,Jens Fohlmeister,
-39,Monica Arienzo,
+38,Jens Fohlmeister,0009-0002-1654-3715
+39,Monica Arienzo,0000-0003-3444-9810
 40,Yuval Burstyn,
-41,Natasha Sekhon,
-42,Isabelle Couchoud,
-44,Drew Lorrey,
-45,Attila Demény,
+41,Natasha Sekhon,0000-0002-4513-2301
+42,Isabelle Couchoud,0000-0002-7166-9575
+44,Drew Lorrey,0000-0002-3923-3181
+45,Attila Demény,0000-0003-0522-9018
 46,Ana Moreno,
-47,Andrea Columbu,
-48,Frank McDermott,
-49,Vasile Ersek,
-50,Annabel Wolf,
+47,Andrea Columbu,0000-0001-5410-062X
+48,Frank McDermott,0000-0001-7037-7936
+49,Vasile Ersek,0000-0001-9730-0007
+50,Annabel Wolf,0000-0002-2910-874X
 51,Carlos Pérez-Mejías,
-54,Denis Scholz,
-56,Marc Luetscher,
-57,Kira Rehfeld,
-58,Andrea Borsato,
-59,Duncan Keenan-Jones,
-60,Laia Comas Bru,
+54,Denis Scholz,0000-0002-0055-8915
+56,Marc Luetscher,0000-0001-7121-8830
+57,Kira Rehfeld,0000-0002-9442-5362
+58,Andrea Borsato,0000-0002-3458-672X
+59,Duncan Keenan-Jones,0000-0001-5951-5146
+60,Laia Comas Bru,0000-0002-7882-4996
 61,Jennifer B. Wurtzel,
-62,Dominik Fleitmann,
+62,Dominik Fleitmann,0000-0001-5977-8835
 63,Francisco da Cruz,
-64,Petra Bajo,
-65,Dominique Genty,
-66,Russell Drysdale,
+64,Petra Bajo,0000-0002-0395-8113
+65,Dominique Genty,0000-0002-3488-7186
+66,Russell Drysdale,0000-0001-7867-031X
 67,Jack Krone,
-68,Sophie Warken,
+68,Sophie Warken,0000-0003-3293-9074
 69,Bronwyn Dixon,
 70,Vanessa Johnston,
-71,Michael Deininger,
-72,Jessica Oster,
+71,Michael Deininger,0000-0002-4930-4908
+72,Jessica Oster,0000-0002-1780-2435
 73,Brittany Ward,
-74,Silviu Constantin,
+74,Silviu Constantin,0000-0003-3737-2652
 75,MG Bustamante,
-76,Stein-Erik Lauritzen,
+76,Stein-Erik Lauritzen,0000-0002-6901-633X
 77,Yancun Cai,
-78,Sebastian Breitenbach,
+78,Sebastian Breitenbach,0000-0001-9615-2065
 79,Virgil Dragusin,
-80,Haiwei Zhang,
+80,Haiwei Zhang,0000-0002-0855-1283
 81,Amy Frappier,
-82,Chris Brierley,
+82,Chris Brierley,0000-0002-9195-6731
 83,Kathleen Wendt,
-84,Nitesh Sinha,
+84,Nitesh Sinha,0000-0001-9868-8816
 85,Eric Park,
 86,Matt Bosomworth,
-87,Bogdan Onac,
-88,Laura Endres,
+87,Bogdan Onac,0000-0003-2332-6858
+88,Laura Endres,0000-0002-5013-4811
 89,Jacek Pawlak,
 90,Nina Loncar,
 91,Oana-Alexandra Dumitru,
-92,Alexander Budsky,
-93,Rhawn Denniston,
-94,Stacy Carolin,
-95,Peter Wynn,
+92,Alexander Budsky,0000-0003-4281-1859
+93,Rhawn Denniston,0000-0002-6346-1221
+94,Stacy Carolin,0000-0001-7181-2370
+95,Peter Wynn,0000-0002-1221-5530
 96,Michael Weber,
-97,Belen Martrat,
-98,Kathleen Johnson,
+97,Belen Martrat,0000-0001-9904-9178
+98,Kathleen Johnson,0000-0003-1291-198X
 99,Mohammed El-Shanawy,
-101,Heather Stoll,
-102,Vanessa Skiba,
+101,Heather Stoll,0000-0002-2953-7835
+102,Vanessa Skiba,0000-0002-0496-120X
 103,Shraddha Band,
-104,Monika Markowska,
+104,Monika Markowska,0000-0003-1455-1121
 105,Marcela Eduarda Della Libera de Godoy,
 107,Carol Tadros,
-108,Lijuan Sha,
-109,Khalil Azennoud,
-110,Jiaoyang Ruan,
-111,Maša Surić,
-112,Juan Luis Bernal Wormull,
+108,Lijuan Sha,0000-0002-6003-2157
+109,Khalil Azennoud,0000-0003-2539-394X
+110,Jiaoyang Ruan,0000-0003-4733-1125
+111,Maša Surić,0000-0002-6266-158X
+112,Juan Luis Bernal Wormull,0000-0003-2086-3527
 113,Mercè Cisneros,
 114,Benjamin Tiger,
-117,Liza McDonough,
-118,Dana Riechelmann,
-119,Matthew Jacobson,
+117,Liza McDonough,0000-0001-7323-5108
+118,Dana Riechelmann,0000-0002-3863-8216
+119,Matthew Jacobson,0000-0002-0583-777X
