@@ -9,7 +9,7 @@ Migrated 2026-08-20. This is a **local dev artifact**, not yet a `database_relea
 ### New
 
 - **`database_release`** — release-level provenance (generation, version, date, type, project, DOI). One row created: the `v3.0` baseline (see "Previous release" below).
-- **`person`** — normalised contributor registry (name + ORCID). 119 distinct individuals, parsed from the 902 `entity.contact` values across the published dataset.
+- **`person`** — normalised contributor registry (name + ORCID). 155 distinct raw contact strings parsed down to 119 individuals initially; **114 after 2026-09-22 duplicate resolution** (see "Resolved" below).
 - **`entity_person`** — junction table linking entities to their contact person(s). Replaces the old free-text `entity.contact` column. 1,022 link rows (some entities have up to 3 contacts, e.g. entity 451 "MAW-0201": Nikita Kaushal, Jessica Oster, Sebastian Breitenbach).
 - **`release_person`** — role-tagged link between a release and the people responsible for it (`release_steward` / `data_curator` / `workflow_developer` / `project_lead` / `data_contributor`). Empty for now — `data_contributor` is derived from `entity_person` + `entity.added_in_release_id` rather than stored, and the other four roles need a human to assign them (nobody currently gets credited as v3.0's steward/curator/etc., since that predates this framework).
 - **`code_artifact`** — DOI-citable code versions for the age-model and downsampling pipelines. Empty — no DOIs assigned yet.
@@ -25,20 +25,23 @@ Migrated 2026-08-20. This is a **local dev artifact**, not yet a `database_relea
 
 - Foreign key integrity was previously **unverifiable** in both existing local copies (no constraints existed to check against). This migration loads all data with `PRAGMA foreign_keys = ON` — any row violating a relationship would have failed the load. Result: **0 foreign key violations** across the full published dataset.
 
+### Resolved (2026-09-22)
+
+- **5 near-duplicate contact-name pairs**, flagged at migration time as likely the same person with inconsistent spelling, deliberately not auto-merged then (a name-similarity heuristic alone isn't reliable enough to merge identities without confirmation). Each pair independently verified this session (affiliation, shared publications, and — where available — ORCID) before merging:
+
+  | Kept | Merged in (deleted) | Evidence |
+  |---|---|---|
+  | Monika Markowska (`person_id` 104) | Monika Markhowska (106) | Only "Markowska" has any independent presence (Northumbria University, SISALv3 contributor); "Markhowska" is an unambiguous typo |
+  | Ana Moreno (46) | Anna Moreno (100) | Same person, CSIC/IPE Zaragoza — both spellings resolve to the identical bio and publication list; "Ana" (single n) is her actual name |
+  | Syed Masood Ahmad (25) | Syed Masood Ahmed (24) | Same ORCID (0000-0002-4090-9660) under both spellings — "Ahmad" is what the ORCID record itself uses |
+  | Andrea Columbu (47) | Andrea Columbo (55) | Same person, University of Bologna, SISAL regional coordinator — both spellings share the identical publication list; "Columbu" (Sardinian-origin surname) is correct, "Columbo" a likely autocorrect-style slip |
+  | Zoltán Kern (31) | Zoltan Kern (116) | Same person, HUN-REN Research Centre for Astronomy and Earth Sciences, Budapest — purely a stripped-diacritic variant |
+
+  Mechanically: `entity_link_person` rows for each merged-away `person_id` were repointed to the kept `person_id` (14 rows repointed across the 5 pairs, no `(entity_id, person_id)` collisions), then the 5 duplicate `person` rows deleted. Verified via a full `build_db.py` rebuild: **0 foreign key violations**, `entity_link_person` row count unchanged at 1,022 (repointed, not lost). `person` now has 114 rows (was 119).
+
 ### Known data-quality items (flagged, not auto-resolved)
 
-- **5 near-duplicate contact-name pairs**, likely the same person with inconsistent spelling across entries — deliberately *not* auto-merged (a name-similarity heuristic isn't reliable enough to safely merge two people's identities without confirmation):
-
-  | Similarity | Name A | Name B |
-  |---|---|---|
-  | 0.97 | Monika Markowska | Monika Markhowska |
-  | 0.952 | Ana Moreno | Anna Moreno |
-  | 0.941 | Syed Masood Ahmed | Syed Masood Ahmad |
-  | 0.929 | Andrea Columbu | Andrea Columbo |
-  | 0.909 | Zoltán Kern | Zoltan Kern |
-
-  Needs a manual decision per pair: same person (merge the `person` rows and repoint `entity_person`) or genuinely different people (leave as-is).
-- **`person.orcid`** is NULL for all 119 people — SISAL hasn't collected ORCID historically. Neotoma already has ORCID for these same contributors; cross-referencing that in is the next step, along with an open `person.neotoma_contributor_id` question still to be resolved with the Neotoma team.
+- **`person.orcid`** is NULL for all 114 people — SISAL hasn't collected ORCID historically. The original plan (cross-reference Neotoma's own ORCID records) turned out not to work: checked directly 2026-09-22 against both the Neotoma schema docs and a live API call, and Neotoma's `contacts` records carry no ORCID field either. Plan going forward: backfill `person.orcid` via online lookup (ORCID's own search/API, or cross-referencing each person's publications) — now unblocked by this duplicate resolution, since backfilling onto an unresolved duplicate would have needed redoing after the merge anyway.
 - **`database_release.release_date` and `.release_doi`** are NULL on the `v3.0` row — the exact original publication date wasn't found in local files, only the DOI reference (`10.5287/ora-2nanwp4rk`, per `sisalv3_db_reference.md`). Worth filling in from the actual SISALv3 publication record.
 - **`PRAGMA foreign_keys = ON` is per-connection, not stored in the file** — any tool/script opening `sisalv3.1.db` needs to set this itself, or constraints silently stop being enforced (this was the exact failure mode that caused the original metadata loss).
 
