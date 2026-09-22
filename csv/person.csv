@@ -1,21 +1,21 @@
-person_id,name,orcid
-1,Hai Cheng,
-2,Jonathan Baker,
+﻿person_id,name,orcid
+1,Hai Cheng,0000-0002-5305-9458
+2,Jonathan Baker,0000-0002-7070-7365
 3,Xianfeng Wang,0000-0002-8614-5627
 4,Inga Labuhn,0000-0003-3755-5264
 5,Franziska Lechleitner,0000-0002-1697-0429
 6,Ting Yong Li,0000-0003-1236-3354
 7,Jun Hu,0000-0002-0458-5996
-8,Kerstin Braun,
+8,Kerstin Braun,0000-0003-4028-7758
 9,Tim Atkinson,0000-0003-2743-4709
 10,Valdir Felipe Novello,0000-0002-0120-3745
-11,Carole Nehme,
+11,Carole Nehme,0000-0003-0004-0910
 12,Nikita Kaushal,0000-0002-2220-9046
 13,Andy Baker,0000-0002-1552-6166
 14,Matthew Lachniet,0000-0001-5250-0144
 15,Gina Moseley,0000-0002-5618-5759
-16,Stef Vansteenberge,
-17,Giselle Utida,
+16,Stef Vansteenberge,unknown
+17,Giselle Utida,0000-0002-7134-5220
 18,Sakonvan Chawchai,0000-0003-0527-9381
 19,Nicolás M. Stríkis,
 20,Vitor Azevedo,

@@ -449,7 +449,7 @@ for table in LOAD_ORDER:
     col_info = cur.execute(f'PRAGMA table_info("{table}")').fetchall()
     col_types = {row[1]: row[2] for row in col_info}  # name -> declared type
 
-    with open(csv_path, newline='', encoding='utf-8') as f:
+    with open(csv_path, newline='', encoding='utf-8-sig') as f:
         reader = csv.DictReader(f)
         columns = reader.fieldnames
         rows = [tuple(cast_value(row[c], col_types.get(c)) for c in columns) for row in reader]
