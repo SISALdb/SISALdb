@@ -39,6 +39,10 @@ Migrated 2026-08-20. This is a **local dev artifact**, not yet a `database_relea
 
   Mechanically: `entity_link_person` rows for each merged-away `person_id` were repointed to the kept `person_id` (14 rows repointed across the 5 pairs, no `(entity_id, person_id)` collisions), then the 5 duplicate `person` rows deleted. Verified via a full `build_db.py` rebuild: **0 foreign key violations**, `entity_link_person` row count unchanged at 1,022 (repointed, not lost). `person` now has 114 rows (was 119).
 
+### Data corrections (2026-09-23)
+
+- **CL26 (entity_id 212, Clamouse cave, site_id 108) — mineralogy corrected from `calcite` to `aragonite` for two depth ranges**: 48–88 cm (`sample_id` 206080–206100, 21 samples) and 322–344 cm (`sample_id` 206216–206227, 12 samples), 33 samples total. Based on the original publication (McDermott et al., 1999), Fig. 4 — consistent with the existing site note on this same entity, which already flags "relict aragonite... preserved in very short intervals... occasional spikes in d13C (3 arrows in upper part of figure 4c in McDermott et al., 1999)." Verified via a full `build_db.py` rebuild: **0 foreign key/CHECK violations** (confirms `aragonite` is a valid `mineralogy` value and nothing else broke).
+
 ### Known data-quality items (flagged, not auto-resolved)
 
 - **`person.orcid`** is NULL for all 114 people — SISAL hasn't collected ORCID historically. The original plan (cross-reference Neotoma's own ORCID records) turned out not to work: checked directly 2026-09-22 against both the Neotoma schema docs and a live API call, and Neotoma's `contacts` records carry no ORCID field either. Plan going forward: backfill `person.orcid` via online lookup (ORCID's own search/API, or cross-referencing each person's publications) — now unblocked by this duplicate resolution, since backfilling onto an unresolved duplicate would have needed redoing after the merge anyway.
