@@ -1,36 +1,30 @@
 """
-Paths and constants for the SISAL DB update pipeline.
-Edit DB_PATH and CSV_DIR to point to your local copies.
+Paths and constants for the SISAL DB update pipeline (SISALv3.1, CSV-first).
 """
 from pathlib import Path
 
-# ── Paths ─────────────────────────────────────────────────────────────────────
-BASE = Path(__file__).parent
+# -- Paths --------------------------------------------------------------------
+REPO_ROOT = Path(__file__).resolve().parent.parent.parent
+CSV_DIR = REPO_ROOT / "csv"  # the repo's actual source of truth
 
-# SQLite database — dev copy for v4 update work
-# Production source: /Users/lendres/SISAL-Agent/sisalv3.db
-DB_PATH = Path(
-    "/Users/lendres/Documents/ResearchHome/00_Researchtopics/Working Groups/"
-    "AB_SISAL/SISAL-Neo cont./SQL_and_AgeModel/sisalv4_update_dev/sisalv4_dev.db"
-)
-
-# CSV export folder — lives alongside the dev DB, never touches the published sisalv3 folder
-CSV_DIR = Path(
-    "/Users/lendres/Documents/ResearchHome/00_Researchtopics/Working Groups/"
-    "AB_SISAL/SISAL-Neo cont./SQL_and_AgeModel/sisalv4_update_dev/sisalv4_csv"
-)
-
-# ── Workbook sheet → DB table mapping ────────────────────────────────────────
+# -- Workbook sheet -> DB table mapping ----------------------------------------
 # Sheets handled so far; extend as more tables are implemented.
 SHEET_TO_TABLE = {
     "Site metadata":    "site",
     "Entity metadata":  "entity",
-    # "Dating information": "dating",       # TODO next
-    # "Sample data":        "sample/proxy", # TODO later
 }
 
-# Entity metadata columns present in workbook that map directly to DB columns.
-# Columns in the workbook that do NOT exist in the DB are silently dropped.
+# Entity metadata columns present in the workbook that map directly to
+# entity.csv columns. Columns in the workbook that do NOT exist in entity.csv
+# are silently dropped.
+#
+# NOT included here (handled separately, see add_entity.py):
+#   - "contact" / "contact_orcid": entity.contact no longer exists as of the
+#     v3.1 release-management schema -- contacts are now entity_link_person
+#     rows (junction to person.csv), resolved via the same person-search-or-
+#     create flow as add_project.py.
+#   - added_in_release_id / last_modified_release_id: new provenance columns
+#     with no workbook equivalent -- left blank on insert (see add_entity.py).
 ENTITY_WORKBOOK_COLS = [
     "entity_name", "geology", "rock_age", "vegetation_type", "land_use",
     "cover_type", "cover_thickness", "host_rock_trace_elements",
@@ -48,10 +42,12 @@ ENTITY_WORKBOOK_COLS = [
     "P_Ca_downsampled", "P_Ca_downsampling_method", "Sr_isotopes",
     "Sr_isotopes_method", "Sr_isotopes_std", "trace_elements_datafile",
     "trace_elements_metadatafile", "cave_map", "entity_scan",
-    "contact", "data_DOI_URL",
+    "data_DOI_URL",
 ]
 
-# Workbook-only columns (QC/admin — not in DB, intentionally excluded)
+# Workbook-only columns (QC/admin, or handled separately -- not written
+# directly into entity.csv via ENTITY_WORKBOOK_COLS)
 ENTITY_WORKBOOK_ONLY = {
-    "one_and_only", "entity_status_info", "entity_status_notes", "contact_orcid",
+    "one_and_only", "entity_status_info", "entity_status_notes",
+    "contact", "contact_orcid",
 }

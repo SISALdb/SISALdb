@@ -11,3 +11,6 @@ output/
 DS_scripts/logs/
 
 .DS_Store
+
+__pycache__/
+*.pyc
