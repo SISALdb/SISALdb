@@ -6,4 +6,8 @@
 
 output/
 
+# Data-steward curation notes -- working file with informal in-progress
+# review notes, stays local-only, never pushed
+DS_scripts/logs/
+
 .DS_Store

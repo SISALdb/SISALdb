@@ -1,1 +1,5 @@
 project_id,person_id,role
+1,12,project_lead
+1,102,data_curator
+1,107,data_curator
+1,88,workflow_developer
