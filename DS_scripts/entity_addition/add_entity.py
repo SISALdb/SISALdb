@@ -34,7 +34,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from config import CSV_DIR, ENTITY_WORKBOOK_COLS
+from config import CSV_DIR, ENTITY_WORKBOOK_COLS, SCHEMA_DBML
 
 LOG_DIR = Path(__file__).parent / "logs"
 
@@ -185,8 +185,100 @@ def read_workbook(wb_path: Path) -> dict:
     return data
 
 
+# -- DBML parsing (schema-driven enum validation, same pattern as backfill_from_csv.py) --
+def _extract_braced_blocks(text, keyword):
+    """Find every `<keyword> <name> { ... }` block in `text`, matching braces
+    by depth so a nested sub-block (this schema's composite-key
+    `indexes { (a, b) [pk] }`) doesn't prematurely close the outer block.
+    Returns [(name, body_text), ...]."""
+    blocks = []
+    for m in re.finditer(rf"{keyword}\s+(\S+)\s*\{{", text):
+        name = m.group(1)
+        i = m.end()
+        depth = 1
+        start = i
+        while depth > 0 and i < len(text):
+            if text[i] == "{":
+                depth += 1
+            elif text[i] == "}":
+                depth -= 1
+            i += 1
+        blocks.append((name, text[start : i - 1]))
+    return blocks
+
+
+def parse_dbml(path):
+    """Returns (enums, tables): enums {enum_name: [value, ...]},
+    tables {table_name: {column_name: type_string}}."""
+    text = path.read_text(encoding="utf-8")
+
+    enums = {}
+    for name, body in _extract_braced_blocks(text, "Enum"):
+        enums[name] = re.findall(r'"([^"]*)"', body)
+
+    tables = {}
+    for name, body in _extract_braced_blocks(text, "Table"):
+        columns = {}
+        for line in body.splitlines():
+            line = line.strip()
+            if not line or line.startswith("//") or line.startswith("Note"):
+                continue
+            if line.startswith("indexes") or line.startswith("("):
+                continue
+            m = re.match(r"^(\w+)\s+(\S+)", line)
+            if m:
+                columns[m.group(1)] = m.group(2)
+        tables[name] = columns
+
+    return enums, tables
+
+
+def _normalize_enum_value(v: str) -> str:
+    """Strip trailing punctuation/whitespace and casefold -- catches the
+    'looks the same but isn't' class of typo (trailing period, stray space,
+    wrong case) without treating a genuinely different value as a match."""
+    return re.sub(r"[\s.]+$", "", v.strip()).casefold()
+
+
+def _find_near_miss(value, allowed):
+    norm_val = _normalize_enum_value(value)
+    for a in allowed:
+        if a != value and _normalize_enum_value(a) == norm_val:
+            return a
+    return None
+
+
+def check_row_enums(row, table_name, tables, enums, row_label):
+    """Validate every enum-typed column present in `row` against the real
+    controlled vocabulary in schema.dbml. A value that fails an exact match
+    would fail the table's CHECK constraint at build_db.py time regardless --
+    so any mismatch is reported as an error here, before --commit ever writes
+    it. When the mismatch is only a trailing-punctuation/whitespace/case
+    difference from a valid value, the message names the exact fix; otherwise
+    it lists the full allowed set."""
+    messages = []
+    cols = tables.get(table_name, {})
+    for col, col_type in cols.items():
+        if col_type not in enums or col not in row:
+            continue
+        value = clean_val(row.get(col))
+        if not value or value in enums[col_type]:
+            continue
+        near = _find_near_miss(value, enums[col_type])
+        if near:
+            messages.append((ERR,
+                f"{row_label}: '{col}' = '{value}' looks like a typo of the valid value "
+                f"'{near}' -- will fail the {col_type} CHECK constraint as written. "
+                f"Fix in the workbook (or the CSV) before --commit."))
+        else:
+            allowed_str = ", ".join(f"'{v}'" for v in enums[col_type])
+            messages.append((ERR,
+                f"{row_label}: '{col}' = '{value}' is not a valid value -- must be exactly one of: {allowed_str}"))
+    return messages
+
+
 # -- Pre-flight checks ------------------------------------------------------------
-def check_site(site_rows, site_row: pd.Series) -> dict:
+def check_site(site_rows, site_row: pd.Series, tables=None, enums=None) -> dict:
     """
     Returns: {action: 'insert'|'reuse', site_id: int, messages: [(level, text), ...]}
     """
@@ -207,14 +299,18 @@ def check_site(site_rows, site_row: pd.Series) -> dict:
                 messages.append((WARN, f"  Longitude mismatch: CSV={existing['longitude']}, workbook={site_row['longitude']}"))
         except (TypeError, ValueError):
             pass
+        if tables is not None:
+            messages.extend(check_row_enums(site_row, "site", tables, enums, f"Site '{name}'"))
         return {"action": "reuse", "site_id": sid, "messages": messages}
     else:
         new_id = next_id(site_rows, "site_id")
         messages.append((OK, f"Site '{name}' is NEW -> will INSERT with site_id={new_id}"))
+        if tables is not None:
+            messages.extend(check_row_enums(site_row, "site", tables, enums, f"Site '{name}'"))
         return {"action": "insert", "site_id": new_id, "messages": messages}
 
 
-def check_entity(entity_rows, entity_row: pd.Series, site_id: int) -> dict:
+def check_entity(entity_rows, entity_row: pd.Series, site_id: int, tables=None, enums=None) -> dict:
     """
     Returns: {action: 'insert'|'skip', entity_id: int, persist_id: str,
               _name: str, messages: [...]}
@@ -273,6 +369,9 @@ def check_entity(entity_rows, entity_row: pd.Series, site_id: int) -> dict:
         messages.append((OK,
             f"Entity '{name}' is NEW (status_info='{status_info}') "
             f"-> INSERT (entity_id={new_id}, persist_id={persist_id})"))
+
+    if tables is not None:
+        messages.extend(check_row_enums(entity_row, "entity", tables, enums, f"Entity '{name}'"))
 
     return {"action": "insert", "entity_id": new_id, "persist_id": persist_id,
             "_name": name, "messages": messages}
@@ -964,6 +1063,8 @@ def main():
     data = read_workbook(wb_path)
     print(f"  Sheets loaded: {list(data.keys())}")
 
+    enums, tables = parse_dbml(SCHEMA_DBML)
+
     loaded = load_all(_ALL_TABLES)
     site_fields, site_rows = loaded["site"]
     entity_fields, entity_rows = loaded["entity"]
@@ -979,7 +1080,7 @@ def main():
         print(ERR("No 'Site metadata' sheet found or it is empty."))
         sys.exit(1)
     site_row = data["Site metadata"].iloc[0]
-    site_result = check_site(site_rows, site_row)
+    site_result = check_site(site_rows, site_row, tables, enums)
 
     if "Entity metadata" not in data:
         print(ERR("No 'Entity metadata' sheet found or it is empty."))
@@ -988,7 +1089,7 @@ def main():
     for _, erow in data["Entity metadata"].iterrows():
         if pd.isna(erow.get("entity_name")):
             continue
-        entity_results.append(check_entity(entity_rows, erow, site_result["site_id"]))
+        entity_results.append(check_entity(entity_rows, erow, site_result["site_id"], tables, enums))
 
     dating_result = None
     if "Dating information" in data:

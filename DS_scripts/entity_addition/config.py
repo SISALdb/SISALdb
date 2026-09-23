@@ -6,6 +6,7 @@ from pathlib import Path
 # -- Paths --------------------------------------------------------------------
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 CSV_DIR = REPO_ROOT / "csv"  # the repo's actual source of truth
+SCHEMA_DBML = REPO_ROOT / "schema" / "schema.dbml"
 
 # -- Workbook sheet -> DB table mapping ----------------------------------------
 # Sheets handled so far; extend as more tables are implemented.
