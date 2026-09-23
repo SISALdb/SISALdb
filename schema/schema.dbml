@@ -709,6 +709,8 @@ Table projects {
   project_name text
   project_doi text
   project_status project_type_enum
+  start_date date
+  completion_date date
   project_notes text
 }
 

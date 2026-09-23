@@ -151,6 +151,8 @@ CREATE TABLE projects (
   project_name TEXT,
   project_doi TEXT,
   project_status TEXT CHECK ({CK('project_status', PROJECT_TYPE)}),
+  start_date TEXT,
+  completion_date TEXT,
   project_notes TEXT
 );
 
