@@ -51,9 +51,15 @@ ENTITY_CSV = CSV_DIR / "entity.csv"
 
 FLAG_LOG_CSV = REPO_ROOT / "DS_scripts" / "logs" / "flagged_entity_matches.csv"
 FLAG_LOG_FIELDS = [
-    "flag_date", "project_id", "project_name", "query",
+    "flag_date", "project_id", "project_name", "query", "match_type",
     "candidate_entity_ids", "candidate_entity_names",
 ]
+# match_type values:
+#   ambiguous  -- 2+ candidate entities, couldn't tell which one from the name alone
+#   not_found  -- no entity in entity.csv matches this query at all
+#   duplicate  -- resolved to an entity_id already linked to this project under
+#                 a different name earlier in the same run (not an error, just
+#                 a record of which name variant got de-duplicated away)
 
 PROJECT_STATUS_CHOICES = ["active", "closed"]
 # Same contributor_role_enum used by release_person -- kept in sync manually,
@@ -85,9 +91,9 @@ def write_csv(path, fieldnames, rows, use_bom=False):
         writer.writerows(rows)
 
 
-def log_flagged_match(project_context, query, matches):
-    """Append one ambiguous entity match to the flagged-for-review log
-    instead of guessing. Creates the log (with header) if it doesn't exist."""
+def log_flagged_match(project_context, query, matches, match_type):
+    """Append one skipped/deferred entity match to the review log instead of
+    silently dropping it. Creates the log (with header) if it doesn't exist."""
     FLAG_LOG_CSV.parent.mkdir(parents=True, exist_ok=True)
     is_new = not FLAG_LOG_CSV.exists()
     with open(FLAG_LOG_CSV, "a", newline="", encoding="utf-8-sig") as f:
@@ -99,6 +105,7 @@ def log_flagged_match(project_context, query, matches):
             "project_id": project_context.get("project_id", ""),
             "project_name": project_context.get("project_name", ""),
             "query": query,
+            "match_type": match_type,
             "candidate_entity_ids": ";".join(m["entity_id"] for m in matches),
             "candidate_entity_names": ";".join(m["entity_name"] for m in matches),
         })
@@ -310,13 +317,16 @@ def read_tokens_from_file(path_str):
 
 def resolve_entity_token(entity_rows, query, seen_ids, linked, project_context):
     """Resolve one entity_id/name token interactively (disambiguating if needed)
-    and append it to `linked` in place if found and not already added. On an
-    ambiguous match, offers 'flag' as an alternative to picking -- logs the
-    query and its candidates for a data curator to resolve later, and leaves
-    it unlinked rather than guessing."""
+    and append it to `linked` in place if found and not already added. Every
+    query that doesn't end up newly linked gets a row in the review log:
+    'ambiguous' (multiple candidates -- can pick a number or type 'flag' to
+    defer instead of guessing), 'not_found' (nothing matches at all), or
+    'duplicate' (resolved to an entity already linked earlier this run under
+    a different name)."""
     matches = find_entities(entity_rows, query)
     if not matches:
         print(f"  No entity matches '{query}' -- check the ID/name and try again.")
+        log_flagged_match(project_context, query, [], match_type="not_found")
         return
     if len(matches) == 1:
         chosen = matches[0]
@@ -327,7 +337,7 @@ def resolve_entity_token(entity_rows, query, seen_ids, linked, project_context):
         while True:
             idx = prompt("  Pick a number, or type 'flag' to send this to the data curator instead")
             if idx.strip().lower() in ("flag", "f"):
-                log_flagged_match(project_context, query, matches)
+                log_flagged_match(project_context, query, matches, match_type="ambiguous")
                 print(f"  Flagged '{query}' for the data curator (see {FLAG_LOG_CSV.name}) -- not linked for now.")
                 return
             if idx.isdigit() and 1 <= int(idx) <= len(matches):
@@ -337,6 +347,7 @@ def resolve_entity_token(entity_rows, query, seen_ids, linked, project_context):
 
     if chosen["entity_id"] in seen_ids:
         print(f"  entity_id {chosen['entity_id']} already linked, skipping.")
+        log_flagged_match(project_context, query, [chosen], match_type="duplicate")
         return
     seen_ids.add(chosen["entity_id"])
     linked.append((chosen["entity_id"], chosen["entity_name"]))
