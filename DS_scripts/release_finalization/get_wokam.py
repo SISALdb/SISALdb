@@ -46,6 +46,15 @@ overwritten. Most entities already have one: `wokam` is an original
 SISALv3 field, not a genuinely-all-blank v3.1 addition -- this script only
 closes the remaining gaps.
 
+Two-pass resolution: `wokam` is a site-level property recorded redundantly
+per entity (confirmed 2026-09-24: zero inconsistencies across 133
+multi-entity sites with a known value), so a blank entity whose site
+already has another entity with a value just inherits it directly (no
+shapefile needed for that entity at all) -- the WOKAM lookup only runs for
+whatever's left after that, and is skipped entirely if nothing's left.
+Each change in the preview/output is tagged 'sibling' or 'geospatial'
+accordingly.
+
 After running, rebuild and verify before committing anyway -- this script's
 own validation only covers the wokam_enum values it writes, not everything
 else build_db.py checks:
@@ -147,6 +156,34 @@ def write_csv(path, fieldnames, rows):
         writer.writerows(rows)
 
 
+def site_known_values(entity_rows, column):
+    """Returns {site_id: value} from entities that already have a non-blank
+    `column` -- `wokam` is a site-level property (confirmed 2026-09-24:
+    zero inconsistencies across 133 multi-entity sites with a known value),
+    so a blank entity at an already-resolved site can just inherit its
+    sibling's value instead of needing the shapefile at all. Refuses to
+    propagate (rather than picking one) if a site somehow has two
+    different non-blank values across its entities -- shouldn't happen,
+    but this is what would catch it if it ever did."""
+    by_site = {}
+    conflicts = []
+    for row in entity_rows:
+        val = row[column].strip()
+        if not val:
+            continue
+        site_id = row["site_id"]
+        if site_id in by_site and by_site[site_id] != val:
+            conflicts.append((site_id, by_site[site_id], val, row["entity_id"]))
+        else:
+            by_site[site_id] = val
+    if conflicts:
+        print(f"{len(conflicts)} site(s) have inconsistent {column} values across entities -- refusing to propagate:")
+        for site_id, v1, v2, entity_id in conflicts:
+            print(f"  site_id {site_id}: '{v1}' vs '{v2}' (entity_id {entity_id})")
+        sys.exit(1)
+    return by_site
+
+
 def resolve_site_wokam(data_dir):
     """Returns {site_id: wokam_value_or_None} for every site in csv/site.csv,
     via point-in-polygon lookup against the WOKAM shapefile."""
@@ -222,55 +259,69 @@ def main():
         print(f"Schema wokam_enum is: {schema_enum}")
         sys.exit(1)
 
-    site_to_wokam = resolve_site_wokam(DATA_DIR)
-
     entity_fields, entity_rows = read_csv(CSV_DIR / "entity.csv")
     if "wokam" not in entity_fields:
         print("entity.csv has no 'wokam' column -- has the schema changed?")
         sys.exit(1)
 
     if args.mode == "validate":
+        site_to_wokam = resolve_site_wokam(DATA_DIR)
         run_validate(entity_rows, site_to_wokam)
         return
 
-    to_update = []      # (row, new_value)
-    already_set = []    # (entity_id, existing_value)
-    no_site_match = []  # entity_id -- site_id not found in site_to_wokam at all
-    no_polygon_match = []  # entity_id -- resolved, but landed outside any WOKAM polygon
-
+    # Pass 1: same-site sibling propagation -- free, no shapefile needed.
+    site_known = site_known_values(entity_rows, "wokam")
+    to_update = []       # (row, new_value, source)
+    already_set = []     # (entity_id, existing_value)
+    still_blank = []     # rows with no sibling value -- need the shapefile
     for row in entity_rows:
-        entity_id = row["entity_id"]
         existing = row["wokam"].strip()
         if existing:
-            already_set.append((entity_id, existing))
+            already_set.append((row["entity_id"], existing))
             continue
-        site_id = row["site_id"]
-        if site_id not in site_to_wokam:
-            no_site_match.append(entity_id)
-            continue
-        new_value = site_to_wokam[site_id]
-        if new_value is None:
-            no_polygon_match.append(entity_id)
-            continue
-        to_update.append((row, new_value))
+        sibling_val = site_known.get(row["site_id"])
+        if sibling_val:
+            to_update.append((row, sibling_val, "sibling"))
+        else:
+            still_blank.append(row)
+
+    # Pass 2: geospatial lookup for whatever sibling propagation couldn't
+    # resolve -- only touches the shapefile if there's actually work left.
+    no_site_match = []      # entity_id -- site_id not found in site_to_wokam at all
+    no_polygon_match = []   # entity_id -- resolved, but landed outside any WOKAM polygon
+    if still_blank:
+        site_to_wokam = resolve_site_wokam(DATA_DIR)
+        for row in still_blank:
+            site_id = row["site_id"]
+            if site_id not in site_to_wokam:
+                no_site_match.append(row["entity_id"])
+                continue
+            new_value = site_to_wokam[site_id]
+            if new_value is None:
+                no_polygon_match.append(row["entity_id"])
+                continue
+            to_update.append((row, new_value, "geospatial"))
+
+    sibling_count = sum(1 for _r, _v, src in to_update if src == "sibling")
+    geo_count = len(to_update) - sibling_count
 
     print("\n=== Preview ===")
     print(f"Entities already set (left alone):    {len(already_set)}")
     print(f"Entities with no site coordinates:    {len(no_site_match)}")
     print(f"Entities outside any WOKAM polygon:   {len(no_polygon_match)}")
-    print(f"Entities to update:                   {len(to_update)}")
+    print(f"Entities to update:                   {len(to_update)}  ({sibling_count} from a sibling entity, {geo_count} via shapefile)")
 
     if to_update:
         print("\nBreakdown of new values:")
         counts = {}
-        for _row, val in to_update:
+        for _row, val, _src in to_update:
             counts[val] = counts.get(val, 0) + 1
         for val, n in sorted(counts.items()):
             print(f"  {val}: {n}")
 
         print("\nFirst 10 changes:")
-        for row, val in to_update[:10]:
-            print(f"  entity_id {row['entity_id']} (site_id {row['site_id']}): wokam -> '{val}'")
+        for row, val, src in to_update[:10]:
+            print(f"  entity_id {row['entity_id']} (site_id {row['site_id']}): wokam -> '{val}' ({src})")
 
     if not to_update:
         print("\nNothing to update.")
@@ -280,7 +331,7 @@ def main():
         print(f"\nDry run -- no changes written. Re-run with --commit to apply {len(to_update)} update(s).")
         return
 
-    for row, val in to_update:
+    for row, val, _src in to_update:
         row["wokam"] = val
     write_csv(CSV_DIR / "entity.csv", entity_fields, entity_rows)
     print(f"\nWrote {len(to_update)} update(s) to csv/entity.csv")

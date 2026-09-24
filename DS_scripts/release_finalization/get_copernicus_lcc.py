@@ -38,6 +38,15 @@ Only fills entities whose `copernicus_lcc` is currently blank -- an entity
 that already has a value is left alone and reported separately, never
 silently overwritten.
 
+Two-pass resolution: `copernicus_lcc` is a site-level property recorded
+redundantly per entity (confirmed 2026-09-24: zero inconsistencies across
+177 multi-entity sites with a known value), so a blank entity whose site
+already has another entity with a value just inherits it directly (no
+raster tile needed for that entity at all) -- the raster lookup only runs
+for whatever's left after that, and is skipped entirely (no tiles required)
+if nothing's left. Each change in the preview/output is tagged 'sibling'
+or 'raster' accordingly.
+
 After running, rebuild and verify before committing anyway -- this script's
 own validation only covers the copernicus_lcc_enum values it writes, not
 everything else build_db.py checks:
@@ -106,11 +115,7 @@ def load_enum(path, enum_name):
 
 def find_rasters(data_dir):
     rasters = sorted(list(data_dir.rglob("*.tif")) + list(data_dir.rglob("*.tiff")))
-    if not rasters:
-        print(f"No .tif/.tiff file found under {data_dir}")
-        print("See DS_scripts/release_finalization/data/copernicus_lcc/README.md to download tiles.")
-        sys.exit(1)
-    return rasters
+    return rasters  # empty list if none found -- caller decides whether that's fatal
 
 
 def read_csv(path):
@@ -127,6 +132,33 @@ def write_csv(path, fieldnames, rows):
         writer.writerows(rows)
 
 
+def site_known_values(entity_rows, column):
+    """Returns {site_id: value} from entities that already have a non-blank
+    `column` -- `copernicus_lcc` is a site-level property (confirmed
+    2026-09-24: zero inconsistencies across 177 multi-entity sites with a
+    known value), so a blank entity at an already-resolved site can just
+    inherit its sibling's value instead of needing a raster tile at all.
+    Refuses to propagate (rather than picking one) if a site somehow has
+    two different non-blank values across its entities."""
+    by_site = {}
+    conflicts = []
+    for row in entity_rows:
+        val = row[column].strip()
+        if not val:
+            continue
+        site_id = row["site_id"]
+        if site_id in by_site and by_site[site_id] != val:
+            conflicts.append((site_id, by_site[site_id], val, row["entity_id"]))
+        else:
+            by_site[site_id] = val
+    if conflicts:
+        print(f"{len(conflicts)} site(s) have inconsistent {column} values across entities -- refusing to propagate:")
+        for site_id, v1, v2, entity_id in conflicts:
+            print(f"  site_id {site_id}: '{v1}' vs '{v2}' (entity_id {entity_id})")
+        sys.exit(1)
+    return by_site
+
+
 def resolve_site_lcc(data_dir):
     """Returns {site_id: (value_or_None, reason)} for every site in
     csv/site.csv with coordinates, via raster point sampling against
@@ -134,21 +166,31 @@ def resolve_site_lcc(data_dir):
     'ok', 'no_tile_coverage' (no downloaded tile's bounds contain the
     point), 'nodata_pixel' (a tile covers it, but the pixel is the
     raster's own nodata/fill value)."""
+    site_fields, site_rows = read_csv(CSV_DIR / "site.csv")
+    for col in ("site_id", "latitude", "longitude"):
+        if col not in site_fields:
+            print(f"site.csv is missing expected column '{col}'")
+            sys.exit(1)
+
+    raster_paths = find_rasters(data_dir)
+    if not raster_paths:
+        print(f"No .tif/.tiff file found under {data_dir} -- treating every site as having no raster coverage.")
+        print("See DS_scripts/release_finalization/data/copernicus_lcc/README.md to download tiles.")
+        result = {}
+        for row in site_rows:
+            lat_s, lon_s = row["latitude"].strip(), row["longitude"].strip()
+            if lat_s and lon_s:
+                result[row["site_id"]] = (None, "no_tile_coverage", (float(lat_s), float(lon_s)))
+        return result
+
     try:
         import rasterio
     except ImportError:
         print("Missing dependency -- install with:\n    pip install rasterio")
         sys.exit(1)
 
-    raster_paths = find_rasters(data_dir)
     datasets = [rasterio.open(p) for p in raster_paths]
     print(f"Using {len(datasets)} raster tile(s): {', '.join(p.name for p in raster_paths)}")
-
-    site_fields, site_rows = read_csv(CSV_DIR / "site.csv")
-    for col in ("site_id", "latitude", "longitude"):
-        if col not in site_fields:
-            print(f"site.csv is missing expected column '{col}'")
-            sys.exit(1)
 
     site_to_lcc = {}
     encountered_codes = set()
@@ -207,48 +249,62 @@ def main():
         print(f"Schema copernicus_lcc_enum is: {schema_enum}")
         sys.exit(1)
 
-    site_to_lcc = resolve_site_lcc(DATA_DIR)
-
     entity_fields, entity_rows = read_csv(CSV_DIR / "entity.csv")
     if "copernicus_lcc" not in entity_fields:
         print("entity.csv has no 'copernicus_lcc' column -- has the schema changed?")
         sys.exit(1)
 
     if args.mode == "validate":
+        site_to_lcc = resolve_site_lcc(DATA_DIR)
         run_validate(entity_rows, site_to_lcc)
         return
 
-    to_update = []          # (row, new_value)
-    already_set = []        # (entity_id, existing_value)
+    # Pass 1: same-site sibling propagation -- free, no raster tile needed.
+    site_known = site_known_values(entity_rows, "copernicus_lcc")
+    to_update = []       # (row, new_value, source)
+    already_set = []     # (entity_id, existing_value)
+    still_blank = []     # rows with no sibling value -- need a raster tile
+    for row in entity_rows:
+        existing = row["copernicus_lcc"].strip()
+        if existing:
+            already_set.append((row["entity_id"], existing))
+            continue
+        sibling_val = site_known.get(row["site_id"])
+        if sibling_val:
+            to_update.append((row, sibling_val, "sibling"))
+        else:
+            still_blank.append(row)
+
+    # Pass 2: raster lookup for whatever sibling propagation couldn't
+    # resolve -- only touches the raster tiles if there's actually work left.
     no_site_match = []      # entity_id -- site_id not found in site_to_lcc at all
     no_tile_coverage = []   # (entity_id, lat, lon)
     nodata_pixel = []       # (entity_id, lat, lon)
+    if still_blank:
+        site_to_lcc = resolve_site_lcc(DATA_DIR)
+        for row in still_blank:
+            site_id = row["site_id"]
+            if site_id not in site_to_lcc:
+                no_site_match.append(row["entity_id"])
+                continue
+            new_value, reason, latlon = site_to_lcc[site_id]
+            if reason == "no_tile_coverage":
+                no_tile_coverage.append((row["entity_id"], *latlon))
+                continue
+            if reason == "nodata_pixel":
+                nodata_pixel.append((row["entity_id"], *latlon))
+                continue
+            to_update.append((row, new_value, "raster"))
 
-    for row in entity_rows:
-        entity_id = row["entity_id"]
-        existing = row["copernicus_lcc"].strip()
-        if existing:
-            already_set.append((entity_id, existing))
-            continue
-        site_id = row["site_id"]
-        if site_id not in site_to_lcc:
-            no_site_match.append(entity_id)
-            continue
-        new_value, reason, latlon = site_to_lcc[site_id]
-        if reason == "no_tile_coverage":
-            no_tile_coverage.append((entity_id, *latlon))
-            continue
-        if reason == "nodata_pixel":
-            nodata_pixel.append((entity_id, *latlon))
-            continue
-        to_update.append((row, new_value))
+    sibling_count = sum(1 for _r, _v, src in to_update if src == "sibling")
+    raster_count = len(to_update) - sibling_count
 
     print("\n=== Preview ===")
     print(f"Entities already set (left alone):    {len(already_set)}")
     print(f"Entities with no site coordinates:    {len(no_site_match)}")
     print(f"Entities with no raster tile coverage: {len(no_tile_coverage)}")
     print(f"Entities on a nodata/fill pixel:       {len(nodata_pixel)}")
-    print(f"Entities to update:                   {len(to_update)}")
+    print(f"Entities to update:                   {len(to_update)}  ({sibling_count} from a sibling entity, {raster_count} via raster)")
 
     if no_tile_coverage:
         print("\nNo raster tile covers these -- download the tile(s) for these coordinates and rerun:")
@@ -260,14 +316,14 @@ def main():
     if to_update:
         print("\nBreakdown of new values:")
         counts = {}
-        for _row, val in to_update:
+        for _row, val, _src in to_update:
             counts[val] = counts.get(val, 0) + 1
         for val, n in sorted(counts.items()):
             print(f"  {val}: {n}")
 
         print("\nFirst 10 changes:")
-        for row, val in to_update[:10]:
-            print(f"  entity_id {row['entity_id']} (site_id {row['site_id']}): copernicus_lcc -> '{val}'")
+        for row, val, src in to_update[:10]:
+            print(f"  entity_id {row['entity_id']} (site_id {row['site_id']}): copernicus_lcc -> '{val}' ({src})")
 
     if not to_update:
         print("\nNothing to update.")
@@ -277,7 +333,7 @@ def main():
         print(f"\nDry run -- no changes written. Re-run with --commit to apply {len(to_update)} update(s).")
         return
 
-    for row, val in to_update:
+    for row, val, _src in to_update:
         row["copernicus_lcc"] = val
     write_csv(CSV_DIR / "entity.csv", entity_fields, entity_rows)
     print(f"\nWrote {len(to_update)} update(s) to csv/entity.csv")
@@ -323,6 +379,8 @@ def run_validate(entity_rows, site_to_lcc):
     if agree or disagree:
         rate = len(agree) / (len(agree) + len(disagree)) * 100
         print(f"\nAgreement rate (excluding unresolvable): {rate:.1f}%")
+    elif checked:
+        print("\nNothing could actually be validated -- no raster tiles are downloaded yet (all unresolvable).")
 
 
 if __name__ == "__main__":
