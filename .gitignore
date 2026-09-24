@@ -20,3 +20,6 @@ DS_scripts/release_finalization/data/*
 
 __pycache__/
 *.pyc
+
+# Local Claude Code working conventions -- stays local-only for now
+CLAUDE.md
