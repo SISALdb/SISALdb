@@ -10,6 +10,12 @@ output/
 # review notes, stays local-only, never pushed
 DS_scripts/logs/
 
+# Local geospatial reference data for release_finalization scripts (e.g. the
+# WOKAM shapefile) -- too large / not ours to redistribute. Each steward
+# downloads their own copy; see DS_scripts/release_finalization/data/README.md
+DS_scripts/release_finalization/data/*
+!DS_scripts/release_finalization/data/README.md
+
 .DS_Store
 
 __pycache__/
