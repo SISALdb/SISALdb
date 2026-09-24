@@ -16,7 +16,7 @@ SISALdb/                              ← this repo (git-tracked)
 ├── USER_scripts/
 │   └── build_db.py                   ← builds a disposable sisalv3.1.db from csv/
 └── DS_scripts/
-    ├── entity_addition/
+    ├── add_entity/
     │   ├── add_entity.py             ← main import script (this workflow)
     │   ├── correct.py                ← retired, kept for history — see Workflow A below
     │   ├── config.py                 ← paths + workbook column mapping
@@ -54,12 +54,12 @@ Auto-QC itself (that pipeline lives in the separate `datasteward-AutoQC` repo).
 ### Step 1 — Dry run first (always)
 
 ```bash
-python3 DS_scripts/entity_addition/add_entity.py \
+python3 DS_scripts/add_entity/add_entity.py \
   --workbook "/path/to/checked submission sheet/<workbook_name>.xlsx" --dry-run
 ```
 
 Answer "yes" to the Auto-QC question, then read the terminal output and the preflight
-log saved to `DS_scripts/entity_addition/logs/`. Check:
+log saved to `DS_scripts/add_entity/logs/`. Check:
 - Site: is it new (INSERT) or already in SISAL (REUSE)?
 - Entities: how many to insert, any skipped (e.g. duplicate name at the same site)?
 - Dating / sample / lamina / reference row counts, and DOI validation results
@@ -72,7 +72,7 @@ those prompts only happen at `--commit`.
 ### Step 2 — Commit if the preflight looks clean
 
 ```bash
-python3 DS_scripts/entity_addition/add_entity.py \
+python3 DS_scripts/add_entity/add_entity.py \
   --workbook "/path/to/checked submission sheet/<workbook_name>.xlsx" --commit
 ```
 
@@ -178,7 +178,7 @@ it (overwrite or save as a new version — if renamed, update the path in Step 4
 ### Step 4 — Re-import
 
 ```bash
-python3 DS_scripts/entity_addition/add_entity.py \
+python3 DS_scripts/add_entity/add_entity.py \
   --workbook "/path/to/checked submission sheet/<workbook_name>.xlsx" --commit
 ```
 
@@ -189,7 +189,7 @@ a clean row.
 
 ## Paper trail
 
-Every dry-run and commit writes a log file to `DS_scripts/entity_addition/logs/`:
+Every dry-run and commit writes a log file to `DS_scripts/add_entity/logs/`:
 
 | File pattern | When created | Contents |
 |---|---|---|
@@ -209,8 +209,8 @@ literature-based correction, as in the CL26 mineralogy fix).
 
 | Task | Command |
 |---|---|
-| Dry run | `python3 DS_scripts/entity_addition/add_entity.py --workbook "X.xlsx" --dry-run` |
-| Commit | `python3 DS_scripts/entity_addition/add_entity.py --workbook "X.xlsx" --commit` |
+| Dry run | `python3 DS_scripts/add_entity/add_entity.py --workbook "X.xlsx" --dry-run` |
+| Commit | `python3 DS_scripts/add_entity/add_entity.py --workbook "X.xlsx" --commit` |
 | Rebuild + verify | `python3 USER_scripts/build_db.py /tmp/sisal_check` |
 | Fix sample/proxy field(s) | `python3 DS_scripts/backfill_from_csv.py path/to/edits.csv` |
 | Check a row (after rebuild) | `sqlite3 /tmp/sisal_check/sisalv3.1.db "SELECT * FROM entity WHERE entity_id=903;"` |
