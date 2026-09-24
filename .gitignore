@@ -11,10 +11,14 @@ output/
 DS_scripts/logs/
 
 # Local geospatial reference data for release_finalization scripts (e.g. the
-# WOKAM shapefile) -- too large / not ours to redistribute. Each steward
-# downloads their own copy; see DS_scripts/release_finalization/data/README.md
+# WOKAM shapefile, Copernicus CGLS-LC100 raster tiles) -- too large / not
+# ours to redistribute. Each steward downloads their own copy; see the
+# README.md in each of these folders (kept -- everything else ignored).
 DS_scripts/release_finalization/data/*
 !DS_scripts/release_finalization/data/README.md
+!DS_scripts/release_finalization/data/copernicus_lcc/
+DS_scripts/release_finalization/data/copernicus_lcc/*
+!DS_scripts/release_finalization/data/copernicus_lcc/README.md
 
 .DS_Store
 
