@@ -95,6 +95,16 @@ Migrated 2026-08-20. This is a **local dev artifact**, not yet a `database_relea
   - **New date-fit gate** (`--max-resid-ratio`, default 5): median |model − date| / median 2σ. A method above it is blanked, not written. New **`--validate`** mode: run any entity, write nothing. Per-method runtimes and fit ratios go in `run_summary_*.csv`. `SISAL_AM_RUNS_DIR` env var.
 - **Validation:** re-running YK5 (34), HOR (250, "from base") and AD4 (545, hiatus), twice each, reproduces the published `sisal_chronology` for all five methods. The median |Δ| is ≤ 0.09 of the published 90 % half-width (0.3–67 yr), and every fit ratio is ≤ 1.2. Checks and plots come from `validate_age_models.py` in `lrndrs/agent_susies_scripts`. The full procedure is `docs/workflows/age-models.md` there.
 
+### Data corrections (2026-09-25)
+
+- **`sisal_chronology` backfilled for Glas (entity_id 903, La Vallina)**: 532 new rows (sample_id 507791–508322), additions only (`git diff --numstat`: `532 0`). The methods written:
+  - lin_interp, lin_reg, Bchron and StalAge: all monotonic, no hiatus
+  - fit ratios 0.03 / 1.95 / 0.18 / 0.75
+  - median |Δ| from the contributor's Bchron `original_chronology`: 27 / 97 / 30 / 47 yr
+- **Bacon left blank** (rejected by the gate, fit ratio 57). rbacon 4.0.0 converges to a curve about 4,000 yr off the dates for this slow-growing (≈3,500 yr/cm), densely dated record. 14 alternative settings didn't fix it, and the root cause is not established (see the workflow doc). Bacon works normally on the validation entities.
+- Verified with `build_db.py`: **0 FK/CHECK violations**. Run evidence is in `GenOutput/age_models/903-Glas_2026-09-25/`.
+- **Visually checked by Laura Endres (2026-09-26)**: age-depth plot of all chronologies approved, and Bacon's rejection confirmed as correct. No model follows the uppermost U-Th date (~3.5 mm), which is expected because there are no isotope samples above it.
+
 ### Known data-quality items (flagged, not auto-resolved)
 
 - **`person.orcid`** is NULL for all 114 people — SISAL hasn't collected ORCID historically. The original plan (cross-reference Neotoma's own ORCID records) turned out not to work: checked directly 2026-09-22 against both the Neotoma schema docs and a live API call, and Neotoma's `contacts` records carry no ORCID field either. Plan going forward: backfill `person.orcid` via online lookup (ORCID's own search/API, or cross-referencing each person's publications) — now unblocked by this duplicate resolution, since backfilling onto an unresolved duplicate would have needed redoing after the merge anyway.
