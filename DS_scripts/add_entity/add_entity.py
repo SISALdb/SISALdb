@@ -310,7 +310,8 @@ def check_site(site_rows, site_row: pd.Series, tables=None, enums=None) -> dict:
         return {"action": "insert", "site_id": new_id, "messages": messages}
 
 
-def check_entity(entity_rows, entity_row: pd.Series, site_id: int, tables=None, enums=None) -> dict:
+def check_entity(entity_rows, entity_row: pd.Series, site_id: int, tables=None, enums=None,
+                 pending=None) -> dict:
     """
     Returns: {action: 'insert'|'skip', entity_id: int, persist_id: str,
               _name: str, messages: [...]}
@@ -347,7 +348,10 @@ def check_entity(entity_rows, entity_row: pd.Series, site_id: int, tables=None, 
             f"persist_id '{persist_id}' already exists (entity_id={existing_persist[0]['entity_id']}) "
             f"-- will still insert entity with this persist_id (allowed for superseded chains)"))
 
-    new_id = next_id(entity_rows, "entity_id")
+    # IDs already handed out to earlier entities of the same workbook in this run
+    # (entity_rows only grows at commit, so next_id() alone would repeat them).
+    planned = [er["entity_id"] for er in (pending or []) if er["action"] == "insert"]
+    new_id = max([next_id(entity_rows, "entity_id")] + [i + 1 for i in planned])
 
     if one_and_only == "yes":
         messages.append((OK,
@@ -509,6 +513,7 @@ def _validate_doi(doi: str, citation) -> tuple:
 def check_references(reference_rows, df_refs: pd.DataFrame, entity_rows, entity_results, site_id) -> dict:
     messages, errors, rows = [], 0, []
     next_ref_id = next_id(reference_rows, "ref_id")
+    planned_refs = {}  # DOI or citation -> ref_id inserted earlier in this run
 
     for _, rrow in df_refs.iterrows():
         ename = str(rrow.get("entity_name", "")).strip()
@@ -531,6 +536,14 @@ def check_references(reference_rows, df_refs: pd.DataFrame, entity_rows, entity_
             if match:
                 existing_ref_id = int(match["ref_id"])
 
+        if existing_ref_id is None:
+            key = doi or citation
+            if key and key in planned_refs:
+                ref_id = planned_refs[key]
+                messages.append((OK, f"Reference already planned in this run (ref_id={ref_id}) -> link only"))
+                rows.append({"ref_id": ref_id, "citation": citation, "doi": doi, "entity_id": eid, "action": "reuse"})
+                continue
+
         if doi:
             ok, doi_msgs = _validate_doi(doi, citation)
             messages.extend(doi_msgs)
@@ -545,6 +558,8 @@ def check_references(reference_rows, df_refs: pd.DataFrame, entity_rows, entity_
         else:
             messages.append((OK, f"Reference is NEW -> INSERT ref_id={next_ref_id}"))
             rows.append({"ref_id": next_ref_id, "citation": citation, "doi": doi, "entity_id": eid, "action": "insert"})
+            if doi or citation:
+                planned_refs[doi or citation] = next_ref_id
             next_ref_id += 1
 
     return {"rows": rows, "messages": messages, "errors": errors}
@@ -1089,7 +1104,8 @@ def main():
     for _, erow in data["Entity metadata"].iterrows():
         if pd.isna(erow.get("entity_name")):
             continue
-        entity_results.append(check_entity(entity_rows, erow, site_result["site_id"], tables, enums))
+        entity_results.append(check_entity(entity_rows, erow, site_result["site_id"], tables, enums,
+                                           pending=entity_results))
 
     dating_result = None
     if "Dating information" in data:

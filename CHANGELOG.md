@@ -73,10 +73,42 @@ Migrated 2026-08-20. This is a **local dev artifact**, not yet a `database_relea
 - **Same-site propagation, added to both `get_wokam.py` and `get_copernicus_lcc.py`**: both fields are recorded per-entity but are really site-level properties — confirmed by checking every multi-entity site with at least one known value (`wokam`: 133 sites; `copernicus_lcc`: 177 sites) for internal disagreement: **zero inconsistencies in either field**. Both scripts now run a cheap first pass that fills a blank entity directly from a sibling entity at the same site (source tagged `'sibling'` in the preview/output) *before* touching the shapefile/raster at all — the geospatial lookup only runs for whatever's left, and is skipped entirely if nothing needs it. `resolve_site_lcc()` was also made tolerant of zero downloaded raster tiles (reports every remaining site as no-coverage instead of exiting), so the sibling pass can complete and get committed independently of whether any raster data exists yet.
 - Net effect run against real data: `get_wokam.py --dry-run` now reports 0 additional sibling fills (its 3 real gaps were already the only resolvable ones, and every site with a blank entity already had all its entities blank — nothing to inherit from). `get_copernicus_lcc.py --dry-run`, run **before any raster tile was downloaded**, immediately found and (`--commit`) applied the 1 sibling fill above; the other 15 blanks are correctly reported as needing tile coverage, each with its exact (lat, lon) printed so future downloads can target them precisely.
 
+### Tooling (2026-09-25)
+
+- **`DS_scripts/export_site_excerpt.py` moved out** to Susie's script repo (`lrndrs/agent_susies_scripts`, as `sisaldb_processing/export_site_excerpt.py`). It *processes* the database (per-site demo excerpts) rather than maintaining it, and this repo keeps only tools that build, import into, correct or release the database. It still reads this repo's `csv/` read-only (new `--sisaldb` flag). Its output was verified byte-identical to the version removed here.
+
 ### Tooling (2026-09-24, continued further)
 
 - **`DS_scripts/export_site_excerpt.py`** added — exports a self-contained per-site excerpt of `csv/` (same schema/structure as the full repo, just filtered to one site's entities) for sharing a small real-structure demo dataset without handing out the whole database. Cascades the filter through every FK edge in the schema (entity → dating/sample/proxies/etc., plus whatever those rows reference back — person, reference, the `database_release` row and its `code_artifact`s, chasing `previous_release` to a fixed point) so the excerpt is genuinely self-contained, not just the obviously-relevant tables. Writes every table in the schema even when 0 rows match (header-only CSV, not a missing file) so the excerpt's structure stays complete. Runs its own lightweight FK integrity check before writing anything — refuses to write if the cascade missed something. Copies `schema.dbml` alongside the CSVs.
 - First real run: `--site "La Vallina" --output <external workshop repo>/data` — 8 entities (all of La Vallina's speleothems), 1,503 samples, 147 dating rows, 2 people, 3 references, all 28 tables written, FK check passed. Used to seed the user's own dataset repo for the "Agents for Scientists" workshop pre-work.
+
+### Tooling (2026-09-25, age models)
+
+- **`DS_scripts/release_finalization/run_age_models.R`** (first written 2026-09-24, not yet committed) finished and validated. It runs SISAL.AM (Carla Roesch; `source()`d, never edited) on the v3.1 `csv/`. Changes since 2026-09-24:
+  - **linReg hiatus bug fixed** (the open `$ operator is invalid for atomic vectors`). For the section below the last hiatus, upstream `lin_reg_ages()` tested `m[[1]]` but used `m[[length(hiatus)+1]]`. A section with fewer than 2 dates now gets NA ages (BG41/583: one date below its hiatus).
+  - **`--commit` no longer rewrites the whole file.** It used to push `sisal_chronology.csv` through readr, which converts CRLF to LF and reformats about 182k floats: a 320k-line diff for 532 new rows. New rows are now merge-inserted by `sample_id` as raw CRLF lines, and existing lines stay byte-identical.
+  - **Eligibility no longer counts hiatus/gap samples as "missing".** They never get a row, so 86 hiatus entities looked eligible forever: 351 → 265.
+  - **`--commit` only runs SISAL.AM class I/II** (its own `filter_SISAL()`), without C14 dates.
+  - **C14 is not auto-mapped any more.** The old header's claim that `'not calibrated'` is the majority of U-Th dates was wrong: U-Th `calib_used` is blank, and `'not calibrated'`/`'unknown'` occur only on C14 dates. Non-C14 dates go to `'normal'`, and C14 fails loudly instead of being treated as calendar ages.
+  - **Bacon hardening.** A failed `Bacon()` used to be swallowed, after which `Bacon.Age.d()` could read the previous entity's global `info`. It now fails the method. The undefined-`thick` case (top at 10–20 cm) is now an explicit error.
+  - **Each entity's run directory is wiped first**, so stale `*_chronology.csv` from an earlier run can't be read back as results.
+  - **New date-fit gate** (`--max-resid-ratio`, default 5): median |model − date| / median 2σ. A method above it is blanked, not written. New **`--validate`** mode: run any entity, write nothing. Per-method runtimes and fit ratios go in `run_summary_*.csv`. `SISAL_AM_RUNS_DIR` env var.
+- **Validation:** re-running YK5 (34), HOR (250, "from base") and AD4 (545, hiatus), twice each, reproduces the published `sisal_chronology` for all five methods. The median |Δ| is ≤ 0.09 of the published 90 % half-width (0.3–67 yr), and every fit ratio is ≤ 1.2. Checks and plots come from `validate_age_models.py` in `lrndrs/agent_susies_scripts`. The full procedure is `docs/workflows/age-models.md` there.
+
+### Data corrections (2026-09-25)
+
+- **`sisal_chronology` backfilled for Glas (entity_id 903, La Vallina)**: 532 new rows (sample_id 507791–508322), additions only (`git diff --numstat`: `532 0`). The methods written:
+  - lin_interp, lin_reg, Bchron and StalAge: all monotonic, no hiatus
+  - fit ratios 0.03 / 1.95 / 0.18 / 0.75
+  - median |Δ| from the contributor's Bchron `original_chronology`: 27 / 97 / 30 / 47 yr
+- **Bacon left blank** (rejected by the gate, fit ratio 57). rbacon 4.0.0 converges to a curve about 4,000 yr off the dates for this slow-growing (≈3,500 yr/cm), densely dated record. 14 alternative settings didn't fix it, and the root cause is not established (see the workflow doc). Bacon works normally on the validation entities.
+- Verified with `build_db.py`: **0 FK/CHECK violations**. Run evidence is in `GenOutput/age_models/903-Glas_2026-09-25/`.
+- **Visually checked by Laura Endres (2026-09-26)**: age-depth plot of all chronologies approved, and Bacon's rejection confirmed as correct. No model follows the uppermost U-Th date (~3.5 mm), which is expected because there are no isotope samples above it.
+
+### Data corrections (2026-09-26, Glas reference)
+
+- **reference 563 (Glas, entity 903)** updated from the EGUsphere preprint to the published paper: Endres et al. (2026), *Climate of the Past*, 22(4), 797–824, https://doi.org/10.5194/cp-22-797-2026 (Zotero `Endres2026_InterplayNorth`). The author name "Pérez-Mejías" is also fixed; it had a combining-accent artefact (`ı́`).
+- **entity 903 `data_DOI_URL`** set to the paper's data DOI, https://doi.org/10.3929/ethz-b-000726747 (ETH Research Collection). Note: on 2026-09-26 the DOI redirected correctly but the Research Collection landing page returned HTTP 500. That's an ETH-side issue, to be followed up.
 
 ### Known data-quality items (flagged, not auto-resolved)
 
