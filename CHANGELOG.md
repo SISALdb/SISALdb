@@ -55,6 +55,7 @@ Migrated 2026-08-20. This is a **local dev artifact**, not yet a `database_relea
 - **`entity.iso_std` corrected** `PDB` → `Vienna-PDB` (the workbook always writes the short form; same manual fix flagged for prior imports in the old HOWTO). Applied by hand directly in `csv/entity.csv`, since `add_entity.py`/`backfill_from_csv.py` don't currently cover a single non-`sample_id`-keyed entity field correction (see `HOWTO_data_steward.md`, Workflow A). Verified via `build_db.py`: 0 FK/CHECK violations.
 
 ### New entities (2026-10-07) — Titan Cave
+- 2026-10-07 (Laura): TC-2 (904) and TC-7 (905) are part of the **Hydro2K** project → `project_link_entity` (project_id 1). Bryce has put the Hydro2K workflow on hold on his side.
 - 2026-10-07 (Laura): trace elements = bin means only; the bin SD is no longer stored as `*_precision` (kept outside the DB for discussion with V. Skiba). Steward copy v2s2 (md5 48d945a41cc68f60e28d8653339c638e). Linear regression accepted; Bacon rejected. WOKAM and Copernicus LCC still to be filled for site 368.
 
 - **Titan Cave (site_id 368), TC-2 (entity_id 904) and TC-7 (entity_id 905)**, Belanger et al. (2025), GRL, `10.1029/2025GL115747`. Source: `v2s1_2026-10-07_steward-corrected.xlsx` (md5 `3a0d97e10ef3329aa1d30be47523753f`), a steward copy of Bryce Belanger's v2 workbook (2026-10-06; hiatuses added, `dating_thickness` 2 mm, land-use note). Versions and cell log: SUBMISSION MANAGMENT `02_in progress/TitanCave_Belanger/` (`VERSIONS.md`).
