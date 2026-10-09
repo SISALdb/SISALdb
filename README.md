@@ -44,7 +44,16 @@ See [`migration_log.txt`](migration_log.txt) for verification output from the or
 
 ## As a NEOTOMA DATA STEWARD, start here: the Changelist
 
-As part of the periodic update, SISALdb produces a changelist output that has been verified to work with the Neotoma Databus. This output is created by using the here published SQL-query (provide the URL). 
+As part of the periodic update, SISALdb produces a changelist output that has been verified to work with the Neotoma Databus. This output is created by using the here published SQL-query: [`DS_scripts/release_finalization/sql/neotoma_flat_export.sql`](DS_scripts/release_finalization/sql/neotoma_flat_export.sql).
+
+The changelist covers every entity that is new or modified since the published SISALv3.0 (which Neotoma already holds): one `sisal_entity_<entity_id>.csv` per entity, plus a `MANIFEST.csv` saying for each entity whether it is new or modified and what changed. It is generated with
+
+```bash
+python3 DS_scripts/release_finalization/export_neotoma_transfer.py            # all changed entities (default)
+python3 DS_scripts/release_finalization/export_neotoma_transfer.py --entity 903
+```
+
+and written to `output/neotoma_transfer/<date>_<commit>/`.
 
  
 
@@ -53,6 +62,8 @@ As part of the periodic update, SISALdb produces a changelist output that has be
 ## As a SISAL DATA STEWARD, start here: DS_scripts
 
 In this folder all scripts needed for updating the database are gathered.
+
+Release finalization (`DS_scripts/release_finalization/`): `get_wokam.py` and `get_copernicus_lcc.py` (backfill site-derived entity fields), `run_age_models.R` (SISAL chronologies), and `export_neotoma_transfer.py` (the Neotoma changelist above).
 
 
 
