@@ -510,56 +510,140 @@ def _validate_doi(doi: str, citation) -> tuple:
     return True, msgs
 
 
+# -- DOI normalisation (reference matching) ---------------------------------------
+# publication_DOI cells come in several forms: a bare DOI (what reference.csv
+# mostly stores), a DOI with a resolver prefix (the Auto-QC accepts these and
+# its own help text uses one), a non-DOI URL (handle, thesis PDF, journal
+# page), or a placeholder the workbook template asks for when there is no DOI.
+# DOIs are case-insensitive, so matching uses a lower-case bare key.
+_DOI_PREFIX_RE = re.compile(r"^(?:https?://(?:dx\.)?doi\.org/|doi:\s*)", re.IGNORECASE)
+_BARE_DOI_RE = re.compile(r"^10\.\d{4,9}/\S+$")
+_DOI_START_RE = re.compile(r"10\.\d{4,9}/")
+# Values the v15 template tells contributors to enter when there is no DOI
+# ("If PhD thesis, please enter 'PhD thesis' ... If unpublished, enter 'unpublished'").
+_NO_DOI_MARKERS = {"unpublished", "phd thesis"}
+
+
+def classify_doi(value):
+    """Classify a publication_DOI cell.
+
+    Returns (kind, stored, key):
+      kind   'none'   -- empty cell
+             'doi'    -- one DOI (bare or with a doi.org / doi: prefix)
+             'marker' -- 'unpublished' / 'PhD thesis' (template placeholders)
+             'url'    -- a non-DOI URL (handle, PDF, journal page)
+             'multi'  -- several DOIs in one cell
+             'other'  -- anything else
+      stored -- the value to write to reference.csv (bare DOI for 'doi',
+                otherwise the cell as given, stripped)
+      key    -- lower-case bare DOI for matching ('doi' only, else None)
+
+    Splitting on ';' is deliberately avoided: old SICI-style DOIs contain a
+    semicolon (e.g. ref 263, 10.1130/0091-7613(1999)027<0815:EFICSM>2.3.CO;2).
+    A cell counts as 'multi' only if it contains more than one '10.NNNN/' start.
+    """
+    s = clean_val(value)
+    if not s:
+        return "none", "", None
+    if len(_DOI_START_RE.findall(s)) > 1:
+        return "multi", s, None
+    bare = _DOI_PREFIX_RE.sub("", s).strip()
+    if _BARE_DOI_RE.match(bare):
+        return "doi", bare, bare.lower()
+    if s.lower() in _NO_DOI_MARKERS:
+        return "marker", s, None
+    if s.lower().startswith(("http://", "https://")):
+        return "url", s, None
+    return "other", s, None
+
+
 def check_references(reference_rows, df_refs: pd.DataFrame, entity_rows, entity_results, site_id) -> dict:
     messages, errors, rows = [], 0, []
     next_ref_id = next_id(reference_rows, "ref_id")
-    planned_refs = {}  # DOI or citation -> ref_id inserted earlier in this run
+    planned_refs = {}  # ('doi', key) or ('cit', citation) -> ref_id inserted earlier in this run
 
-    for _, rrow in df_refs.iterrows():
+    # DB side, normalised the same way: bare lower-case DOI -> first ref row.
+    # 'unpublished' and URLs in reference.csv never get a DOI key, so they
+    # can't be matched by DOI (ref 4 'unpublished' used to swallow every
+    # unpublished submission).
+    db_by_doi = {}
+    for r in reference_rows:
+        kind, _, key = classify_doi(r.get("publication_DOI"))
+        if kind == "doi" and key not in db_by_doi:
+            db_by_doi[key] = r
+
+    for i, (_, rrow) in enumerate(df_refs.iterrows(), start=1):
         ename = str(rrow.get("entity_name", "")).strip()
+        label = f"Reference row {i} ('{ename}')"
         citation = clean_val(rrow.get("citation")) or None
-        doi = clean_val(rrow.get("publication_DOI")) or None
+        raw_doi = clean_val(rrow.get("publication_DOI"))
+        kind, stored_doi, doi_key = classify_doi(raw_doi)
 
         eid = _entity_id_for_name(entity_rows, entity_results, site_id, ename)
         if eid is None:
-            messages.append((ERR, f"Reference: entity '{ename}' not found"))
+            if re.search(r"[,;/]", ename):
+                messages.append((ERR, f"{label}: entity not found -- this cell seems to list several "
+                                      f"entities. Use one row per entity and reference (repeat the "
+                                      f"citation and DOI)."))
+            else:
+                messages.append((ERR, f"{label}: entity '{ename}' not found"))
+            errors += 1
+            continue
+
+        if kind == "multi":
+            messages.append((ERR, f"{label}: publication_DOI '{raw_doi}' seems to contain several DOIs. "
+                                  f"Put each reference in its own row, with one DOI per cell."))
             errors += 1
             continue
 
         existing_ref_id = None
-        if doi:
-            match = next((r for r in reference_rows if r.get("publication_DOI") == doi), None)
+        if kind == "doi":
+            match = db_by_doi.get(doi_key)
             if match:
                 existing_ref_id = int(match["ref_id"])
+                if match.get("publication_DOI", "").strip() != raw_doi:
+                    messages.append((INFO, f"{label}: DOI '{raw_doi}' matches ref_id={existing_ref_id} "
+                                           f"('{match['publication_DOI']}') after normalisation"))
         if existing_ref_id is None and citation:
             match = next((r for r in reference_rows if r.get("citation") == citation), None)
             if match:
                 existing_ref_id = int(match["ref_id"])
 
-        if existing_ref_id is None:
-            key = doi or citation
-            if key and key in planned_refs:
-                ref_id = planned_refs[key]
-                messages.append((OK, f"Reference already planned in this run (ref_id={ref_id}) -> link only"))
-                rows.append({"ref_id": ref_id, "citation": citation, "doi": doi, "entity_id": eid, "action": "reuse"})
-                continue
+        if existing_ref_id is None and not citation:
+            messages.append((ERR, f"{label}: no citation given -- a new reference needs a citation"))
+            errors += 1
+            continue
 
-        if doi:
-            ok, doi_msgs = _validate_doi(doi, citation)
+        plan_key = ("doi", doi_key) if kind == "doi" else ("cit", citation)
+        if existing_ref_id is None and plan_key in planned_refs:
+            ref_id = planned_refs[plan_key]
+            messages.append((OK, f"{label}: reference already planned in this run (ref_id={ref_id}) -> link only"))
+            rows.append({"ref_id": ref_id, "citation": citation, "doi": stored_doi, "entity_id": eid, "action": "reuse"})
+            continue
+
+        if kind == "doi":
+            ok, doi_msgs = _validate_doi(stored_doi, citation)
             messages.extend(doi_msgs)
             if not ok:
                 errors += 1
+        elif kind == "marker":
+            messages.append((WARN, f"{label}: no DOI ('{raw_doi}') -- matched by citation only, not validated online"))
+        elif kind == "url":
+            messages.append((WARN, f"{label}: '{raw_doi}' is a URL, not a DOI -- matched by citation only, not validated in CrossRef"))
+        elif kind == "other":
+            messages.append((ERR, f"{label}: publication_DOI '{raw_doi}' is not a DOI, a URL, "
+                                  f"'unpublished' or 'PhD thesis'"))
+            errors += 1
         else:
-            messages.append((WARN, "No DOI provided for reference -- cannot validate online"))
+            messages.append((WARN, f"{label}: no DOI provided -- cannot validate online"))
 
         if existing_ref_id is not None:
-            messages.append((OK, f"Reference already in DB (ref_id={existing_ref_id}) -> will reuse"))
-            rows.append({"ref_id": existing_ref_id, "citation": citation, "doi": doi, "entity_id": eid, "action": "reuse"})
+            messages.append((OK, f"{label}: reference already in DB (ref_id={existing_ref_id}) -> will reuse"))
+            rows.append({"ref_id": existing_ref_id, "citation": citation, "doi": stored_doi, "entity_id": eid, "action": "reuse"})
         else:
-            messages.append((OK, f"Reference is NEW -> INSERT ref_id={next_ref_id}"))
-            rows.append({"ref_id": next_ref_id, "citation": citation, "doi": doi, "entity_id": eid, "action": "insert"})
-            if doi or citation:
-                planned_refs[doi or citation] = next_ref_id
+            messages.append((OK, f"{label}: reference is NEW -> INSERT ref_id={next_ref_id}"))
+            rows.append({"ref_id": next_ref_id, "citation": citation, "doi": stored_doi, "entity_id": eid, "action": "insert"})
+            planned_refs[plan_key] = next_ref_id
             next_ref_id += 1
 
     return {"rows": rows, "messages": messages, "errors": errors}
