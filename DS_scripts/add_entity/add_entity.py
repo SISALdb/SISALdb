@@ -1212,7 +1212,9 @@ def main():
     xls = pd.ExcelFile(wb_path)
     if "Notes" in xls.sheet_names:
         raw = pd.read_excel(xls, sheet_name="Notes", header=None)
-        note_texts = [str(v).strip() for v in raw.iloc[:, 0].dropna() if str(v).strip()]
+        # An untouched template Notes sheet has no cells at all (0 columns).
+        if raw.shape[1] > 0:
+            note_texts = [str(v).strip() for v in raw.iloc[:, 0].dropna() if str(v).strip()]
         if note_texts:
             notes_result = check_notes(notes_rows, note_texts, site_result["site_id"])
 
