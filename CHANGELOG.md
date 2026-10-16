@@ -139,6 +139,7 @@ Migrated 2026-08-20. This is a **local dev artifact**, not yet a `database_relea
 - Steward copy: 110 logged cells, all confirmed by Laura or mechanical (trailing spaces in "Olivander"/"Alastair", bare DOIs, P_Ca/Mg_Ca metadata, blank trace-element flags → `no` with their dependent columns, the trailing period on `No-aliquots …` that the enum check refused, Notes text moved into column A). Cell log: `GenOutput/QC_runs/LaVallina_Stoll2026_2026-10-16/steward_cell_changes_2026-10-16.csv`. WebSubmit QC 0 errors.
 - Note on `add_entity.py`: it reads only column A of the Notes sheet. The template invites `Notes for <entity>:` in A and the text in B, which would have imported only the label. Worth fixing in the script (join each row's cells).
 - First built on `dev` (branch now `archive/lavallina-stoll2026-dev-ids`, not for merging): `dev` was 11 commits behind `main` and lacked Titan Cave, so that build reused entity 904/905, sample, dating, reference and person IDs. Rebuilt here from `main`. Lesson: before any import, check `main`, `dev`, open branches/worktrees and PRs for unmerged entity additions and their IDs.
+- `wokam` → `discontinuous carbonate` and `copernicus_lcc` → `closed forest, other` for 906–909, both inherited from the sibling entities at site 324 (`get_wokam.py` / `get_copernicus_lcc.py --commit`; diff limited to these 4 rows). `dating_thickness` stays blank (Laura).
 - Verified with `build_db.py`: **0 FK/CHECK violations**.
 
 ### Known data-quality items (flagged, not auto-resolved)
