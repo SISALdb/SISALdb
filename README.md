@@ -65,7 +65,10 @@ In this folder all scripts needed for updating the database are gathered.
 
 Release finalization (`DS_scripts/release_finalization/`): `get_wokam.py` and `get_copernicus_lcc.py` (backfill site-derived entity fields), `run_age_models.R` (SISAL chronologies), and `export_neotoma_transfer.py` (the Neotoma changelist above).
 
-Records from science projects (e.g. Hydro2K) are added like any other submission: they get the next free `entity_id` and are linked to their project in `project_link_entity`.
+Records from science projects (e.g. Hydro2K) are added like any other submission: they get the next free `entity_id` and are linked to their project in `project_link_entity`. "Next free" means free on `main` **and on every open `update/*` branch**: `add_entity.py` counts IDs on its own branch only, so two import branches started from the same `main` would get the same IDs. Therefore:
+
+- start a new import branch from `main` only when no other data branch is open (check the open pull requests with the label `entity addition`);
+- label every pull request that adds entities `entity addition`.
 
 
 
