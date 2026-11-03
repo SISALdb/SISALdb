@@ -4,7 +4,7 @@ Development home for **SISALv3.1** — a release-management and contributor-prov
 
 ## Status
 
-🚧 **In development.** This is pre-release schema/migration work, not an official SISAL data release. See [CHANGELOG.md](CHANGELOG.md) for what's changed so far and what's still open.
+🚧 **In development.** This is a pre-release LIVE VERSION OF SISAL DATABASE. It includes some schema/migration work, not an official SISAL data release. See [CHANGELOG.md](CHANGELOG.md) for what's changed so far and what's still open.
 
 ## What's new in v3.1
 
