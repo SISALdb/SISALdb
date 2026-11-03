@@ -152,6 +152,10 @@ Migrated 2026-08-20. This is a **local dev artifact**, not yet a `database_relea
 
 - **`PROJECTS.md` removed** (it reserved primary-key blocks per project branch, e.g. Hydro2K `10000–19999`, never used). SISAL no longer reserves ID ranges: records from science projects are added to the live database as they come, get the next free `entity_id` like any other submission, and are linked to their project in `project_link_entity` (e.g. TC-2/TC-7 → Hydro2K). README: the `PROJECTS.md` row is gone, and one sentence on project records was added to the data-steward section.
 
+### Documentation (2026-11-03): one import branch at a time
+
+- **README, data-steward section:** "next free ID" now means free on `main` and on every open `update/*` branch. `add_entity.py` assigns max + 1 on its own branch, so parallel import branches from the same `main` collide (entity, site, sample, dating, reference and person IDs). Rule: start a new import branch only when no other data branch is open, and label every pull request that adds entities `entity addition` (new GitHub label), so open imports are easy to find. Follow-up to Laura's review comment on PR #8.
+
 ### Known data-quality items (flagged, not auto-resolved)
 
 - **`person.orcid`** is NULL for all 114 people — SISAL hasn't collected ORCID historically. The original plan (cross-reference Neotoma's own ORCID records) turned out not to work: checked directly 2026-09-22 against both the Neotoma schema docs and a live API call, and Neotoma's `contacts` records carry no ORCID field either. Plan going forward: backfill `person.orcid` via online lookup (ORCID's own search/API, or cross-referencing each person's publications) — now unblocked by this duplicate resolution, since backfilling onto an unresolved duplicate would have needed redoing after the merge anyway.
