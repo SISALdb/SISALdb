@@ -65,6 +65,8 @@ In this folder all scripts needed for updating the database are gathered.
 
 Release finalization (`DS_scripts/release_finalization/`): `get_wokam.py` and `get_copernicus_lcc.py` (backfill site-derived entity fields), `run_age_models.R` (SISAL chronologies), and `export_neotoma_transfer.py` (the Neotoma changelist above).
 
+Records from science projects (e.g. Hydro2K) are added like any other submission: they get the next free `entity_id` and are linked to their project in `project_link_entity`.
+
 
 
 ## Repo layout
@@ -74,7 +76,6 @@ Release finalization (`DS_scripts/release_finalization/`): `get_wokam.py` and `g
 | `csv/` | The full SISALv3.1 data, one CSV per table — diff-friendly source of truth |
 | `schema/schema.dbml` | Full schema, published SISALv3 tables + draft v3.1 additions |
 | `scripts/build_db.py` | Builds the SQLite database from `csv/` |
-| `PROJECTS.md` | Reserved primary-key ID ranges per project branch, to keep branch merges collision-free |
 | `CHANGELOG.md` | Release history, one entry per `database_release` |
 | `migration_log.txt` | Verification output from the original v3 → v3.1 migration |
 
