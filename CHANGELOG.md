@@ -141,12 +141,16 @@ Migrated 2026-08-20. This is a **local dev artifact**, not yet a `database_relea
 - First built on `dev` (branch now `archive/lavallina-stoll2026-dev-ids`, not for merging): `dev` was 11 commits behind `main` and lacked Titan Cave, so that build reused entity 904/905, sample, dating, reference and person IDs. Rebuilt here from `main`. Lesson: before any import, check `main`, `dev`, open branches/worktrees and PRs for unmerged entity additions and their IDs.
 - `wokam` → `discontinuous carbonate` and `copernicus_lcc` → `closed forest, other` for 906–909, both inherited from the sibling entities at site 324 (`get_wokam.py` / `get_copernicus_lcc.py --commit`; diff limited to these 4 rows). `dating_thickness` stays blank (Laura).
 - Verified with `build_db.py`: **0 FK/CHECK violations**.
+- Entities renamed to ALA, BEL, LVG, OLI (3.11.2026)
 
 ### Data corrections (2026-10-16): SISAL age models for La Vallina 906–909
 
 - **`sisal_chronology` for Bellatrix, Alastair, Lovegood, Olivander (906–909)**: 1,022 new rows (sample_id 509216–510237), additions only (`git diff --numstat`: `1022 0`), `run_age_models.R --commit`. All four are class I (no hiatus). Every method passed the fit gate (fit ratio ≤ 1.85) with no reversals; lin_interp, Bchron and StalAge overlap 100 % of the dates. Plots reviewed by Laura: all methods accepted for Bellatrix, Alastair and Lovegood.
 - **Olivander (909) Bacon rejected during SISAL Data Steward review** (all 241 rows blank, `blank_method_rows.py` in `lrndrs/agent_susies_scripts`; log `GenOutput/age_models/906-909_LaVallina_2026-10-16/blank_909_Bacon_2026-10-16.csv`). Bacon misses the top date (134.1 ± 0.6 ka at 2.5 mm) by ~3.5 kyr in every run. Cause: SISAL.AM's `runBacon()` picks `acc.mean` from a fixed grid that stops at 500 yr/cm; Olivander grows at ~1,400 yr/cm (~3,200 yr/cm in its top part), so the prior is ~3× too fast and Bacon treats the single top date as an outlier (posterior acc. learning ratio 0.49). A test with `acc.mean = 2000` passes through all 8 dates (learning ratio 0.99). Whether to extend the grid in the runner is a separate, pending decision. Site 324 note: one sentence on this rejection.
 - Verified with `build_db.py`: **0 FK/CHECK violations**. Run evidence: `GenOutput/age_models/906-909_LaVallina_2026-10-16/`.
+### Documentation (2026-11-03): no more project ID ranges
+
+- **`PROJECTS.md` removed** (it reserved primary-key blocks per project branch, e.g. Hydro2K `10000–19999`, never used). SISAL no longer reserves ID ranges: records from science projects are added to the live database as they come, get the next free `entity_id` like any other submission, and are linked to their project in `project_link_entity` (e.g. TC-2/TC-7 → Hydro2K). README: the `PROJECTS.md` row is gone, and one sentence on project records was added to the data-steward section.
 
 ### Known data-quality items (flagged, not auto-resolved)
 

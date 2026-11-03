@@ -63,6 +63,11 @@ log saved to `DS_scripts/add_entity/logs/`. Check:
 - Site: is it new (INSERT) or already in SISAL (REUSE)?
 - Entities: how many to insert, any skipped (e.g. duplicate name at the same site)?
 - Dating / sample / lamina / reference row counts, and DOI validation results
+- References: one workbook row per entity × reference. DOIs are matched to `reference.csv`
+  case-insensitively and without a `https://doi.org/` / `doi:` prefix (a new DOI is stored
+  bare). `unpublished`, `PhD thesis` and non-DOI URLs count as "no DOI": matched by citation
+  only, not sent to CrossRef (WARN). A cell with several DOIs, a cell listing several
+  entities, or a new reference without a citation is an ERR.
 - Notes: appended to an existing site row, or a fresh row?
 - Warnings and errors
 
