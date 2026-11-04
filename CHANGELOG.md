@@ -156,6 +156,11 @@ Migrated 2026-08-20. This is a **local dev artifact**, not yet a `database_relea
 
 - **README, data-steward section:** "next free ID" now means free on `main` and on every open `update/*` branch. `add_entity.py` assigns max + 1 on its own branch, so parallel import branches from the same `main` collide (entity, site, sample, dating, reference and person IDs). Rule: start a new import branch only when no other data branch is open, and label every pull request that adds entities `entity addition` (new GitHub label), so open imports are easy to find. Follow-up to Laura's review comment on PR #8.
 
+### Documentation (2026-11-04): code owners and corrections via pull request
+
+- **`.github/CODEOWNERS`** (new): review by @lrndrs is requested automatically on every pull request that touches `csv/`, `schema/` or `DS_scripts/`, including pull requests from forks. Further data stewards can be added to the same lines.
+- **README, data-steward section:** how to submit corrections to existing records (e.g. the site-coordinate corrections from the SISAL monitoring database) as a pull request: only the affected cells, one line per corrected row, old → new value and source per row; afterwards the stewards carry them over to Neotoma and re-run the site-derived fields.
+
 ### Known data-quality items (flagged, not auto-resolved)
 
 - **`person.orcid`** is NULL for all 114 people — SISAL hasn't collected ORCID historically. The original plan (cross-reference Neotoma's own ORCID records) turned out not to work: checked directly 2026-09-22 against both the Neotoma schema docs and a live API call, and Neotoma's `contacts` records carry no ORCID field either. Plan going forward: backfill `person.orcid` via online lookup (ORCID's own search/API, or cross-referencing each person's publications) — now unblocked by this duplicate resolution, since backfilling onto an unresolved duplicate would have needed redoing after the merge anyway.

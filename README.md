@@ -70,6 +70,8 @@ Records from science projects (e.g. Hydro2K) are added like any other submission
 - start a new import branch from `main` only when no other data branch is open (check the open pull requests with the label `entity addition`);
 - label every pull request that adds entities `entity addition`.
 
+**Corrections to existing records** (e.g. site coordinates, elevations or metadata fixed by another SISAL project such as the monitoring database) also come in as a pull request, also from a fork: change only the affected cells in `csv/` (text editor or script, never saved from a spreadsheet app, so the diff shows one line per corrected row), and list for each row the ID, old → new value, and the source or method of the correction. Review by a SISAL data steward is requested automatically (`.github/CODEOWNERS`). After the merge, the stewards carry the same corrections over to Neotoma and re-run the site-derived fields (`get_wokam.py`, `get_copernicus_lcc.py`) where coordinates changed.
+
 
 
 ## Repo layout
