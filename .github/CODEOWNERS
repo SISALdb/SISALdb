@@ -1,0 +1,7 @@
+# Review is requested automatically from the code owners below for every pull
+# request that touches these paths (also pull requests from forks).
+# Add further data stewards to the same lines.
+
+csv/        @lrndrs
+schema/     @lrndrs
+DS_scripts/ @lrndrs
